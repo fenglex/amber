@@ -1,0 +1,30 @@
+version: '3.1'
+services:
+  mysql:
+    image: mysql
+    restart: always
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 123455
+      MYSQL_USER: haifeng
+      MYSQL_PASSWORD: 123456
+      TZ: Asia/Shanghai
+    ports:
+      - 3306:3306
+    volumes:
+      - /opt/service/volumes/mysql:/var/lib/mysql
+    networks:
+      - service
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+  nps:
+    image: ffdfgdfg/nps
+    container_name: nps
+    restart: always
+    network_mode: host
+    volumes:
+      - /opt/service/volumes/nps_conf:/conf
+
+
+networks:
+  service:
+    external: true
