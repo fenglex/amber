@@ -4,7 +4,7 @@
 
 
 docker-compose方式启动
-```aidl
+```
 version: '3.1'
 services:
   ddns:
