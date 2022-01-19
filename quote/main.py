@@ -9,16 +9,25 @@ import pandas as pd
 from bin.setting import Setting
 from bin.basic import Basic
 from sqlalchemy import create_engine
+from bin.util import DbUtil
+import logging
 
-setting = Setting()
-conn = create_engine(setting.url)
-connect = conn.connect()
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(filename)s %(funcName)s [line:%(lineno)d] %(levelname)s %(message)s')
 
-ts.set_token(setting.token)
-pro = ts.pro_api()
 
-basic = Basic(pro)
-basic.stock_list().to_sql('tb_stock_list', con=conn, if_exists='replace', chunksize=5000, index=False)
+if __name__ == '__main__':
+    setting = Setting()
+    conn = create_engine(setting.url)
+    connect = conn.connect()
 
-# basic.stock_list().to_excel('data.xlsx')
-# print(basic.stock_list())
+    ts.set_token(setting.token)
+    pro = ts.pro_api()
+    db_util = DbUtil(conn)
+    basic = Basic(pro)
+
+    # db_util.to_mysql(basic.stock_list(), 'tb_stock_list', truncate_table=True)
+    # db_util.to_mysql(basic.trade_calender(), 'tb_trade_calendar', truncate_table=True)
+    db_util.to_mysql(basic.public_company_info(), 'tb_public_company_info', truncate_table=True)
+    # basic.stock_list().to_excel('data.xlsx')
+    # print(basic.stock_list())
