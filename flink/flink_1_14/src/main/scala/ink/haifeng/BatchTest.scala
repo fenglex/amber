@@ -5,7 +5,7 @@ import org.apache.flink.streaming.api.scala._
 
 object BatchTest {
   def main(args: Array[String]): Unit = {
-    val path="/Users/haifeng/workspace/Projects/amber/flink/flink_1_14/data/data.csv";
+    val path="/Users/haifeng/workspace/Projects/amber/flink/flink_1_14/data/visit_data.csv";
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     env.readTextFile(path).map(e => {
