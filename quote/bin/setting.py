@@ -11,5 +11,5 @@ logging.basicConfig(level=logging.INFO,
 
 class Setting:
     def __init__(self):
-        self.token = 'tushare_toket'
-        self.url = 'mysql+pymysql://user:password@host:port/database?charset=utf8'
+        self.token = 'e88ad9a2c34e9c77b6bd55d187694897fce2ab081f249c5cd8043cbb'
+        self.url = 'mysql+pymysql://haifeng:X1PmkDrdjNsG@haifeng.ink:3306/db_quant?charset=utf8'
