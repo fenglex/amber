@@ -14,7 +14,7 @@ object JdbcSource {
   def main(args: Array[String]): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    env.addSource(new JdbcSource()).print("test")
+    env.addSource(new JdbcSource()).flatMap(e=>Array(e)).print("test")
     env.execute()
 
   }
