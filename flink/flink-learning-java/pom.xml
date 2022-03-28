@@ -78,6 +78,11 @@ under the License.
 			<version>8.0.27</version>
 		</dependency>
 		<dependency>
+			<groupId>cn.hutool</groupId>
+			<artifactId>hutool-all</artifactId>
+			<version>5.8.0.M1</version>
+		</dependency>
+		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-jdbc_2.11</artifactId>
 			<version>1.14.4</version>

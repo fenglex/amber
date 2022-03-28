@@ -15,7 +15,7 @@ public class StockDailyStreaming {
     public static void main(String[] args) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-        DataStreamSource<String> data = env.readTextFile("/Users/haifeng/Documents/stock-20220322.csv");
+        DataStreamSource<String> data = env.readTextFile("/Users/haifeng/Documents/stock-20220322.gz");
         SingleOutputStreamOperator<StockData> reduce = data.map(StockData::new)
                 .filter(e -> e.getStockCode().startsWith("00") || e.getStockCode().startsWith("60") || e.getStockCode().startsWith("68") || e.getStockCode().startsWith("30"))
                 .filter(e -> e.getTradeDay().equals("20220322"))
@@ -52,7 +52,7 @@ public class StockDailyStreaming {
             preparedStatement.setString(10, System.currentTimeMillis() / 1000 + "");
         }, executionOptions, connectionOptions);
 
-        //reduce.addSink(sink);
+        reduce.addSink(sink);
        //exactlyOnceSink(reduce, insertSql);
         final MysqlXADataSource xaDataSource = new com.mysql.cj.jdbc.MysqlXADataSource();
         xaDataSource.setUrl("jdbc:mysql://localhost:3306");
@@ -60,27 +60,27 @@ public class StockDailyStreaming {
         xaDataSource.setPassword("123456");
 
 
-        reduce.addSink(JdbcSink.exactlyOnceSink(insertSql, (preparedStatement, e) -> {
-                    preparedStatement.setString(1, e.getStockCode());
-                    preparedStatement.setString(2, e.getTradeDay());
-                    preparedStatement.setString(3, e.getPrice() + "");
-                    preparedStatement.setString(4, e.getHigh() + "");
-                    preparedStatement.setString(5, e.getLow() + "");
-                    preparedStatement.setString(6, e.getOpen() + "");
-                    preparedStatement.setString(7, e.getPrice() + "");
-                    preparedStatement.setString(8, e.getVolume() + "");
-                    preparedStatement.setString(9, System.currentTimeMillis() / 1000 + "");
-                    preparedStatement.setString(10, System.currentTimeMillis() / 1000 + "");
-                }, JdbcExecutionOptions.builder()
-                        .withMaxRetries(0)
-                        .build(),
-                JdbcExactlyOnceOptions.defaults(),
-                () -> {
-                    // create a driver-specific XA DataSource
-                    // The following example is for derby
-                    xaDataSource.setDatabaseName("db_quotation");
-                    return xaDataSource;
-                }));
+//        reduce.addSink(JdbcSink.exactlyOnceSink(insertSql, (preparedStatement, e) -> {
+//                    preparedStatement.setString(1, e.getStockCode());
+//                    preparedStatement.setString(2, e.getTradeDay());
+//                    preparedStatement.setString(3, e.getPrice() + "");
+//                    preparedStatement.setString(4, e.getHigh() + "");
+//                    preparedStatement.setString(5, e.getLow() + "");
+//                    preparedStatement.setString(6, e.getOpen() + "");
+//                    preparedStatement.setString(7, e.getPrice() + "");
+//                    preparedStatement.setString(8, e.getVolume() + "");
+//                    preparedStatement.setString(9, System.currentTimeMillis() / 1000 + "");
+//                    preparedStatement.setString(10, System.currentTimeMillis() / 1000 + "");
+//                }, JdbcExecutionOptions.builder()
+//                        .withMaxRetries(0)
+//                        .build(),
+//                JdbcExactlyOnceOptions.defaults(),
+//                () -> {
+//                    // create a driver-specific XA DataSource
+//                    // The following example is for derby
+//                    xaDataSource.setDatabaseName("db_quotation");
+//                    return xaDataSource;
+//                }));
         env.execute("StockEod");
     }
 
