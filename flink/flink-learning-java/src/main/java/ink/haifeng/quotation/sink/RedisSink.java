@@ -44,8 +44,8 @@ public class RedisSink extends RichSinkFunction<RedisValue> {
 
     @Override
     public void invoke(RedisValue value, Context context) throws Exception {
-        String stockKey = String.format("%s%s%s", "69", "901", SecureUtil.md5("").substring(8, 24));
-        String productKey = String.format("%s%s%s", "69", "902", SecureUtil.md5("").substring(8, 24));
+//        String stockKey = String.format("%s%s%s", "69", "901", SecureUtil.md5("").substring(8, 24));
+//        String productKey = String.format("%s%s%s", "69", "902", SecureUtil.md5("").substring(8, 24));
         Jedis jedis = null;
         try {
             jedis = jedisPool.getResource();
