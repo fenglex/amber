@@ -1,5 +1,6 @@
 package ink.haifeng.quotation;
 
+import ink.haifeng.quotation.model.dto.ProductConstituentsInfo;
 import ink.haifeng.quotation.model.entity.ProductIndexConstituents;
 import ink.haifeng.quotation.model.dto.StringConstituent;
 import ink.haifeng.quotation.source.ProductConstituentsSource;
@@ -41,40 +42,7 @@ public class SourceTest {
                 new MapStateDescriptor<>("product-info", STRING(),
                         Types.POJO(ProductIndexConstituents.class));
 
-        KeyedStream<ProductIndexConstituents, String> constituentsStringKeyedStream =
-                env.addSource(new ProductConstituentsSource()).returns(Types.POJO(ProductIndexConstituents.class))
-                        .assignTimestampsAndWatermarks(
-                                WatermarkStrategy.<ProductIndexConstituents>forBoundedOutOfOrderness(Duration.ofSeconds(1))
-                                        .withTimestampAssigner((SerializableTimestampAssigner<ProductIndexConstituents>) (element, recordTimestamp) -> element.timestamp())
-                        ).keyBy(ProductIndexConstituents::getStockCode);
 
-
-        DataStreamSource<String> streamSource = env
-                .fromElements("000020.SZ,1650250112",
-                        "000059.SZ,1650250112",
-                        "000301.SZ,1650250112");
-        streamSource.map((MapFunction<String,
-                        Tuple2<String, String>>) value -> {
-                    String[] split = value.split(",");
-                    return Tuple2.of(split[0], split[1]);
-                }).returns(Types.TUPLE(Types.STRING, Types.STRING))
-                .assignTimestampsAndWatermarks(WatermarkStrategy.<Tuple2<String, String>>forBoundedOutOfOrderness(Duration.ofSeconds(5))
-                        .withTimestampAssigner((SerializableTimestampAssigner<Tuple2<String, String>>) (element,
-                                                                                                        recordTimestamp) -> Integer.parseInt(element.f1)*1000L)).keyBy(e -> e.f0)
-                .intervalJoin(constituentsStringKeyedStream)
-                .between(Time.hours(-8), Time.hours(0)
-                ).process(new ProcessJoinFunction<Tuple2<String, String>, ProductIndexConstituents,
-                        StringConstituent>() {
-                    @Override
-                    public void processElement(Tuple2<String, String> left, ProductIndexConstituents right,
-                                               ProcessJoinFunction<Tuple2<String, String>, ProductIndexConstituents,
-                                                       StringConstituent>.Context ctx,
-                                               Collector<StringConstituent> out) throws Exception {
-                        out.collect(new StringConstituent(left.f0 + "---" + left.f1, right));
-                    }
-
-
-                }).print("test");
 
 
         env.execute("timer test");

@@ -17,6 +17,8 @@ public class Constants {
     public static final int MINUTE_14_57 = 1457;
 
 
+    public static final String RUN_DAY = "run.day";
+
     public static final String STOCK_REDIS_KEY = String
             .format("%s%s%s", "69", "901", SecureUtil.md5("").substring(8, 24));
     public static final String PRODUCT_REDIS_KEY = String

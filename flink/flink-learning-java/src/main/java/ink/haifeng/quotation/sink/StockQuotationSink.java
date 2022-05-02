@@ -22,7 +22,7 @@ public class StockQuotationSink implements Sink<StockQuotation> {
     }
 
     @Override
-    public SinkFunction<StockQuotation> create() {
+    public SinkFunction<StockQuotation> sink() {
         String sql = "INSERT INTO tb_stock_quotation(stock_code,trade_day,trade_time,price,pre_close,gain,`change`," +
                 "volume,total_volume,amount,total_amount,real_time,create_time,update_time) " +
                 "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) on duplicate key update " +
