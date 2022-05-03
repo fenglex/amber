@@ -7,24 +7,24 @@ import ink.haifeng.quotation.model.dto.ProductConstituentsInfo;
 import ink.haifeng.quotation.model.dto.StockData;
 import ink.haifeng.quotation.model.dto.StockMinutePreData;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.*;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.util.Collector;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class ProcessProductMinuteProcessFunction extends KeyedBroadcastProcessFunction<String, StockMinutePreData, List<ProductConstituentsInfo>, ProductData> {
 
 
     private ListState<ProductData> productDataCache;
 
-    private MapState<String, List<ProductConstituentsInfo>> stockConstituentsMapState;
+    private ListState<ProductConstituentsInfo> stockConstituentsListState;
 
     private ValueState<Integer> currentConstituentsDayState;
 
@@ -33,37 +33,44 @@ public class ProcessProductMinuteProcessFunction extends KeyedBroadcastProcessFu
         ListStateDescriptor<ProductData> cacheProductDataListStateDescriptor =
                 new ListStateDescriptor<ProductData>("product-data-cache", Types.POJO(ProductData.class));
         productDataCache = getRuntimeContext().getListState(cacheProductDataListStateDescriptor);
-        stockConstituentsMapState = getRuntimeContext()
-                .getMapState(new MapStateDescriptor<>("stock-constituents", Types.STRING, Types.LIST(Types.POJO(ProductConstituentsInfo.class))));
+        stockConstituentsListState = getRuntimeContext().getListState(new ListStateDescriptor<>("stock-constituents", Types.POJO(ProductConstituentsInfo.class)));
+
+
         currentConstituentsDayState = getRuntimeContext().getState(new ValueStateDescriptor<Integer>("current-day", Types.INT));
     }
 
 
     @Override
-    public void processElement(StockMinutePreData stockData, KeyedBroadcastProcessFunction<String, StockMinutePreData, List<ProductConstituentsInfo>, ProductData>.ReadOnlyContext readOnlyContext, Collector<ProductData> collector) throws Exception {
+    public void processElement(StockMinutePreData stockData,
+                               KeyedBroadcastProcessFunction<String, StockMinutePreData, List<ProductConstituentsInfo>, ProductData>.ReadOnlyContext readOnlyContext,
+                               Collector<ProductData> collector) throws Exception {
         StockData current = stockData.getCurrent();
         Integer currentConstituentsDay = currentConstituentsDayState.value();
-        ProductData productData = new ProductData(current, stockData.getLastMinute(), null);
+        ProductData productData = new ProductData(stockData.getCurrent(), stockData.getLastMinute(), null);
         productDataCache.add(productData);
-        if (currentConstituentsDay != null && current.getTradeDay() != currentConstituentsDay) {
+        if (currentConstituentsDay != null && current.getTradeDay() == currentConstituentsDay) {
             Iterable<ProductData> dataIterable = productDataCache.get();
             dataIterable.forEach(e -> {
-                String stockCode = e.getCurrent().getStockCode();
-                List<ProductConstituentsInfo> infos;
                 try {
-                    infos = stockConstituentsMapState.get(stockCode);
+                    processOneElement(e, collector);
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
-                }
-                if (infos != null && !infos.isEmpty()) {
-                    for (ProductConstituentsInfo info : infos) {
-                        ProductData data = new ProductData(e.getCurrent(), e.getLastMinute(), info);
-                        collector.collect(data);
-                    }
                 }
             });
             productDataCache.clear();
         }
+    }
+
+
+    private void processOneElement(ProductData productData, Collector<ProductData> collector) throws Exception {
+        Iterable<ProductConstituentsInfo> constituentsInfos = stockConstituentsListState.get();
+        constituentsInfos.forEach(e -> {
+            if (e.getStockCode().equals(productData.getCurrent().getStockCode())) {
+                ProductData data = new ProductData(productData.getCurrent(), productData.getLastMinute(), e);
+                System.out.println(data.getCurrent().minute() + "\t" + data.getCurrent().getStockCode());
+                collector.collect(data);
+            }
+        });
     }
 
     @Override
@@ -73,16 +80,8 @@ public class ProcessProductMinuteProcessFunction extends KeyedBroadcastProcessFu
         ParameterTool params = (ParameterTool) parameters;
         int runDay = params.getInt(Constants.RUN_DAY, 0);
         int currentDay = runDay != 0 ? runDay : DateUtils.currentDay();
-
-        for (ProductConstituentsInfo constituentsInfo : infos) {
-            List<ProductConstituentsInfo> stateInfos = stockConstituentsMapState.get(constituentsInfo.getStockCode());
-            if (stateInfos == null) {
-                stateInfos = new ArrayList<>();
-            }
-            stateInfos.add(constituentsInfo);
-            infos = infos.stream().filter(e -> e.getTradeDay() == currentDay).collect(Collectors.toList());
-            stockConstituentsMapState.put(constituentsInfo.getStockCode(), infos);
-        }
+        stockConstituentsListState.clear();
+        stockConstituentsListState.update(infos);
         currentConstituentsDayState.update(currentDay);
     }
 }

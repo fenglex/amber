@@ -114,8 +114,8 @@ public class QuoteStream {
                         StockData last = stockLastMinuteState.value();
                         StockMinutePreData data;
                         if (last != null && last.getTradeDay() == value.getTradeDay()) {
-//                            System.out.println(String.format("%s\t%s\t%s\t%s", value.getStockCode(), value.minute(),
-//                                    last.getStockCode(), last.minute()));
+                            System.out.println(String.format("%s\t%s\t%s\t%s", value.getStockCode(), value.minute(),
+                                    last.getStockCode(), last.minute()));
                             data = new StockMinutePreData(value, last);
                         } else {
                             data = new StockMinutePreData(value, null);
@@ -127,61 +127,27 @@ public class QuoteStream {
                 }).returns(Types.POJO(StockMinutePreData.class));
 
 
-        MapStateDescriptor<String, ProductIndexConstituents> constituentsMapStateDescriptor =
-                new MapStateDescriptor<>("product_constituents", Types.STRING,
-                        Types.POJO(ProductIndexConstituents.class));
-        BroadcastStream<List<ProductConstituentsInfo>> constituentsBroadcastStream = env.addSource(new ProductConstituentsSource()).broadcast(constituentsMapStateDescriptor);
+        MapStateDescriptor<Void, List<ProductIndexConstituents>> mapStateDescriptor = new MapStateDescriptor<>("product_constituents", Types.VOID,
+                Types.LIST(Types.POJO(ProductIndexConstituents.class)));
+
+
+        BroadcastStream<List<ProductConstituentsInfo>> constituentsBroadcast = env.addSource(new ProductConstituentsSource()).broadcast(mapStateDescriptor);
 
 
         stockMinuteStream
                 .keyBy(e -> e.getCurrent().getStockCode())
-                .connect(constituentsBroadcastStream)
+                .connect(constituentsBroadcast)
                 .process(new ProcessProductMinuteProcessFunction())
-                .assignTimestampsAndWatermarks(WatermarkStrategy
-                .<ProductData>forBoundedOutOfOrderness(Duration.ofSeconds(0))
-                .withTimestampAssigner((SerializableTimestampAssigner<ProductData>) (stockMinutePreData, l) -> stockMinutePreData.getLastMinute().getTimestamp()))
-                .print();
-//                .assignTimestampsAndWatermarks(WatermarkStrategy.<ProductData>forBoundedOutOfOrderness(Duration.ofSeconds(0))
-//                        .withTimestampAssigner((SerializableTimestampAssigner<ProductData>) (productData, l) -> productData.getCurrent().getTimestamp()))
-//                .keyBy(e -> e.getConstituentsInfo().getProductCode())
-//                .window(TumblingEventTimeWindows.of(Time.minutes(1)))
-//                .aggregate(new AggregateFunction<ProductData, ProductAccumulator, ProductAccumulator>() {
-//
-//
-//                    @Override
-//                    public ProductAccumulator createAccumulator() {
-//                        return new ProductAccumulator();
-//                    }
-//
-//                    @Override
-//                    public ProductAccumulator add(ProductData data, ProductAccumulator productAccumulator) {
-//                        StockData current = data.getCurrent();
-//                        StockData lastMinute = data.getLastMinute();
-//                        ProductConstituentsInfo info = data.getConstituentsInfo();
-//                        productAccumulator.setProductCode(info.getProductCode());
-//                        productAccumulator.setProductName(info.getProductName());
-//                        productAccumulator.setTradeDay(current.getTradeDay());
-//                        productAccumulator.setTradeTime(current.minute());
-//                        if (lastMinute != null) {
-//                            productAccumulator.setAmount(current.getAmount() - lastMinute.getAmount());
-//                        }
-//
-//                        //System.out.println(productAccumulator.getUuid() + "\t" + data);
-//
-//                        return productAccumulator;
-//                    }
-//
-//                    @Override
-//                    public ProductAccumulator getResult(ProductAccumulator productAccumulator) {
-//                        return productAccumulator;
-//                    }
-//
-//                    @Override
-//                    public ProductAccumulator merge(ProductAccumulator productAccumulator, ProductAccumulator acc1) {
-//                        return null;
-//                    }
-//                });
-        //.print("test");
+                .keyBy(e -> e.getConstituentsInfo().getProductCode())
+                .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+                .reduce(new ReduceFunction<ProductData>() {
+                    @Override
+                    public ProductData reduce(ProductData productData, ProductData t1) throws Exception {
+                        System.out.println(productData);
+                        System.out.println(t1);
+                        return productData;
+                    }
+                }).print("test");
 
         env.execute();
     }
