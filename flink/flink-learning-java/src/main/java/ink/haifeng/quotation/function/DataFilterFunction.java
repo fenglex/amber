@@ -2,6 +2,7 @@ package ink.haifeng.quotation.function;
 
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
+import ink.haifeng.quotation.common.DateUtils;
 import ink.haifeng.quotation.model.dto.StockData;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 
@@ -10,6 +11,7 @@ import java.util.Date;
 
 /**
  * 过滤数据，删除异常数据
+ *
  * @author haifeng
  * @version 1.0
  * @date Created in 2022/4/28 13:47:19
@@ -28,6 +30,9 @@ public class DataFilterFunction extends RichFilterFunction<StockData> {
             return false;
         }
         if (value.getState() == -1) {
+            return false;
+        }
+        if (!DateUtils.isTradeTime(value.minute())) {
             return false;
         }
         String current = DateUtil.format(new Date(), "yyyyMMdd");

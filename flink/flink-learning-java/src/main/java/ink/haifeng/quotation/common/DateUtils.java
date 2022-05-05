@@ -1,11 +1,16 @@
 package ink.haifeng.quotation.common;
 
+import cn.hutool.core.date.DateUtil;
+
+import java.util.Date;
+
+
 /**
  * @author haifeng
  * @version 1.0
  * @date Created in 2022/4/28 13:48:35
  */
-public class TimeUtil {
+public class DateUtils {
 
     /**
      * 判断这个分钟是否是交易时间
@@ -22,5 +27,10 @@ public class TimeUtil {
         } else {
             return minute == Constants.MINUTE_15_00;
         }
+    }
+
+
+    public static int currentDay(){
+        return Integer.parseInt(DateUtil.format(new Date(),"yyyyMMdd"));
     }
 }

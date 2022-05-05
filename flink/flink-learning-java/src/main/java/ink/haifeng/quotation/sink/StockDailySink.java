@@ -23,7 +23,7 @@ public class StockDailySink implements Sink<StockDaily>{
     }
 
     @Override
-    public SinkFunction<StockDaily> create() {
+    public SinkFunction<StockDaily> sink() {
         String sql = "INSERT INTO tb_stock_eod(stock_code,trade_day,close_price,high_price,low_price,open_price," +
                 "pre_close_price,volume,create_time,update_time) " +
                 "VALUES(?,?,?,?,?,?,?,?,?,?) on duplicate key update " +
