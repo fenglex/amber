@@ -2,7 +2,9 @@ package ink.haifeng.table;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 /**
@@ -13,6 +15,7 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 public class FlinkTable {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
         EnvironmentSettings settings = EnvironmentSettings
                 .newInstance()
                 .inStreamingMode()
@@ -20,17 +23,22 @@ public class FlinkTable {
                 //.inBatchMode()
                 .build();
 
-        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
         tableEnv.executeSql("CREATE TABLE user_visit (" +
-                " user STRING, ts BIGINT," +
-                "et as TO_TIMESTAMP(FROM_UNIXTIME(ts/1000))," +
-                "WATERMARK FOR et as et-INTERVAL 2 SECOND " +
+                " `user` STRING, ts BIGINT," +
+                " et as TO_TIMESTAMP(FROM_UNIXTIME(ts/1000))," +
+                " window_start, " +
+                " WATERMARK FOR et as et-INTERVAL '2' SECOND " +
                 ") WITH (" +
-                "'connector'='filesystem'," +
-                "'path'='data/user-visit.log'," +
-                "'format'='csv'" +
+                " 'connector' = 'filesystem', " +
+                " 'path' = '/Users/haifeng/workspace/Projects/amber/flink/flink-learning-java/data/user-visit.csv', " +
+                " 'format' = 'csv'," +
+                "'csv.field-delimiter'=','" +
                 ")");
-        tableEnv.executeSql("select * from user_visit").print();
+
+        Table table = tableEnv.sqlQuery("select user ,count(1) from user_visit group by user");
+        tableEnv.toChangelogStream(table).print();
 
         env.execute("table test");
     }

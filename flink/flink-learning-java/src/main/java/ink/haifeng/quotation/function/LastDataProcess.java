@@ -41,7 +41,7 @@ public class LastDataProcess extends KeyedProcessFunction<String, StockData, Sto
         StockData value = lastDataState.value();
         if (value != null) {
             value.setTimestamp(value.getTimestamp() + 80 * 1000L);
-            value.setState(-2);
+            value.setState(-1);
             out.collect(value);
         }
     }

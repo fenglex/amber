@@ -5,7 +5,7 @@ import ink.haifeng.quotation.common.Constants;
 import ink.haifeng.quotation.common.DateUtils;
 import ink.haifeng.quotation.model.dto.ProductConstituentsInfo;
 import ink.haifeng.quotation.model.dto.StockData;
-import ink.haifeng.quotation.model.dto.StockMinutePreData;
+import ink.haifeng.quotation.model.dto.StockMinuteWithPreData;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -19,7 +19,7 @@ import org.apache.flink.util.Collector;
 
 import java.util.List;
 
-public class ProcessProductMinuteProcessFunction extends KeyedBroadcastProcessFunction<String, StockMinutePreData, List<ProductConstituentsInfo>, ProductData> {
+public class ProcessProductMinuteProcessFunction extends KeyedBroadcastProcessFunction<String, StockMinuteWithPreData, List<ProductConstituentsInfo>, ProductData> {
 
 
     private ListState<ProductData> productDataCache;
@@ -41,8 +41,8 @@ public class ProcessProductMinuteProcessFunction extends KeyedBroadcastProcessFu
 
 
     @Override
-    public void processElement(StockMinutePreData stockData,
-                               KeyedBroadcastProcessFunction<String, StockMinutePreData, List<ProductConstituentsInfo>, ProductData>.ReadOnlyContext readOnlyContext,
+    public void processElement(StockMinuteWithPreData stockData,
+                               KeyedBroadcastProcessFunction<String, StockMinuteWithPreData, List<ProductConstituentsInfo>, ProductData>.ReadOnlyContext readOnlyContext,
                                Collector<ProductData> collector) throws Exception {
         StockData current = stockData.getCurrent();
         Integer currentConstituentsDay = currentConstituentsDayState.value();
@@ -74,7 +74,7 @@ public class ProcessProductMinuteProcessFunction extends KeyedBroadcastProcessFu
     }
 
     @Override
-    public void processBroadcastElement(List<ProductConstituentsInfo> infos, KeyedBroadcastProcessFunction<String, StockMinutePreData, List<ProductConstituentsInfo>, ProductData>.Context context, Collector<ProductData> collector) throws Exception {
+    public void processBroadcastElement(List<ProductConstituentsInfo> infos, KeyedBroadcastProcessFunction<String, StockMinuteWithPreData, List<ProductConstituentsInfo>, ProductData>.Context context, Collector<ProductData> collector) throws Exception {
         ExecutionConfig.GlobalJobParameters parameters =
                 this.getRuntimeContext().getExecutionConfig().getGlobalJobParameters();
         ParameterTool params = (ParameterTool) parameters;

@@ -1,10 +1,6 @@
 package ink.haifeng.quotation.sink;
 
-import com.alibaba.fastjson.JSON;
-import ink.haifeng.quotation.model.dto.RedisValue;
-import ink.haifeng.quotation.model.dto.StockData;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 /**
  * @author haifeng

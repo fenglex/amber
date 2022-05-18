@@ -1,24 +1,10 @@
 package ink.haifeng.quotation;
 
-import ink.haifeng.quotation.model.dto.ProductConstituentsInfo;
 import ink.haifeng.quotation.model.entity.ProductIndexConstituents;
-import ink.haifeng.quotation.model.dto.StringConstituent;
-import ink.haifeng.quotation.source.ProductConstituentsSource;
-import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
-import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.util.Collector;
-
-import java.time.Duration;
 
 import static org.apache.flink.api.scala.typeutils.Types.STRING;
 

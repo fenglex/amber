@@ -23,9 +23,9 @@ public class TimerTest {
             @Override
             public void run() {
                 System.out.println("run job->" + DateUtil.formatDateTime(new Date()));
-                executorService.shutdown();
+               // executorService.shutdown();
             }
-        }, 30, 1, TimeUnit.SECONDS);
+        }, 0, 5, TimeUnit.SECONDS);
 
     }
 }

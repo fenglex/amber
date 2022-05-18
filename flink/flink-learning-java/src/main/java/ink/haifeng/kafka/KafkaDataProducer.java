@@ -19,7 +19,7 @@ import java.util.Properties;
 public class KafkaDataProducer {
     public static void main(String[] args) throws IOException {
         Properties props = new Properties();
-        props.put("bootstrap.servers", "192.168.2.6:9092");
+        props.put("bootstrap.servers", "192.168.2.8:9092");
         props.put("acks", "all");
         props.put("retries", 0);
         props.put("batch.size", 100000);
@@ -28,9 +28,10 @@ public class KafkaDataProducer {
         props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         //生产者发送消息
-        String topic = "original_0418";
+        String topic = "original_0418_2";
         Producer<String, String> producer = new KafkaProducer<String, String>(props);
-        BufferedReader reader = FileUtil.getReader("D:\\workspace\\amber\\flink\\flink-learning-java\\data\\original-20220418.csv", StandardCharsets.UTF_8);
+        BufferedReader reader = FileUtil.getReader("/Users/haifeng/workspace/Projects/amber/flink/flink-learning-java" +
+                "/data/original-20220418.csv", StandardCharsets.UTF_8);
         String line;
         int count = 0;
         while ((line = reader.readLine()) != null) {
@@ -38,6 +39,9 @@ public class KafkaDataProducer {
             producer.send(msg);
             StockData stockData = new StockData(line);
             System.out.println(stockData);
+            if ((stockData.minute() == 1256 || stockData.minute() == 1255 || stockData.minute() == 1254) && stockData.getStockCode().equals("600519.SH")) {
+                continue;
+            }
             count += 1;
             if (count % 1000 == 0) {
                 System.out.println(count);
