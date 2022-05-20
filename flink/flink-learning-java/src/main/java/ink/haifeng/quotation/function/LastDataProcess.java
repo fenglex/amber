@@ -28,7 +28,9 @@ public class LastDataProcess extends KeyedProcessFunction<String, StockData, Sto
 
         int minute = value.minute();
         if (minute == Constants.MINUTE_9_25 || minute == Constants.MINUTE_11_29 || minute == Constants.MINUTE_15_00) {
-            ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 60 * 1000L);
+
+            // TODO 修改为晚60秒发送
+            ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5 * 1000L);
         }
         out.collect(value);
         lastDataState.update(value);

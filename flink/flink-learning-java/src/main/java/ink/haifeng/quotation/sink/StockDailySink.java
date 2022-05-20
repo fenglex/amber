@@ -9,6 +9,8 @@ import org.apache.flink.connector.jdbc.JdbcSink;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
+import java.util.Properties;
+
 /**
  * @author haifeng
  * @version 1.0
@@ -16,10 +18,10 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
  */
 public class StockDailySink implements Sink<StockDaily>{
 
-    private final ParameterTool parameter;
+    private final Properties properties;
 
-    public StockDailySink(ParameterTool parameter) {
-        this.parameter = parameter;
+    public StockDailySink(Properties properties) {
+        this.properties = properties;
     }
 
     @Override
@@ -50,10 +52,10 @@ public class StockDailySink implements Sink<StockDaily>{
             ps.setLong(18, e.getUpdateTime());
         }, JdbcExecutionOptions.builder().withBatchSize(500)
                 .withBatchIntervalMs(200).build(), new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-                .withUrl(parameter.get("jdbc.url"))
+                .withUrl(properties.getProperty("jdbc.url"))
                 .withDriverName("com.mysql.cj.jdbc.Driver")
-                .withUsername(parameter.get("jdbc.user"))
-                .withPassword(parameter.get("jdbc.password"))
+                .withUsername(properties.getProperty("jdbc.user"))
+                .withPassword(properties.getProperty("jdbc.password"))
                 .build());
     }
 }

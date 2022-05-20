@@ -25,6 +25,12 @@ import java.math.RoundingMode;
 public class StockData implements RedisEntity {
     private String stockCode;
     private int tradeDay;
+    /**
+     * 状态
+     * 0 为异常数据
+     * -1 解析异常数据
+     * -2 为了推动水印生成数据
+     */
     private int state = 0;
     private BigDecimal price;
     private BigDecimal preClose;

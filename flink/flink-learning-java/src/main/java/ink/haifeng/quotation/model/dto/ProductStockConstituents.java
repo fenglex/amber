@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 /**
  * @author haifeng
  * @version 1.0
@@ -16,4 +18,5 @@ public class ProductStockConstituents {
     private String productCode;
     private String stockCode;
     private Integer adjShare;
+    private BigDecimal preClose;
 }

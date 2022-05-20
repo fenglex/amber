@@ -2,6 +2,7 @@ package ink.haifeng.quotation.function;
 
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
+import ink.haifeng.quotation.common.Constants;
 import ink.haifeng.quotation.common.DateUtils;
 import ink.haifeng.quotation.model.dto.StockData;
 import org.apache.flink.api.common.functions.RichFilterFunction;
@@ -29,10 +30,14 @@ public class DataFilterFunction extends RichFilterFunction<StockData> {
         if (value.getPrice().compareTo(BigDecimal.ZERO) == 0) {
             return false;
         }
-        if (value.getState() == -1) {
+        if (value.getState() < 0) {
             return false;
         }
         if (!DateUtils.isTradeTime(value.minute())) {
+            return false;
+        }
+        int dayOfWeek = DateUtil.dayOfWeek(new Date());
+        if (dayOfWeek == 1 || dayOfWeek == 6) {
             return false;
         }
         String current = DateUtil.format(new Date(), "yyyyMMdd");

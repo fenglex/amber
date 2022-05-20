@@ -17,7 +17,10 @@ public class TimerTest {
     public static void main(String[] args) {
 
 
-        ScheduledExecutorService executorService = new ScheduledThreadPoolExecutor(1,
+        String format = DateUtil.format(DateUtil.parse("1925", "HHmm"), "Hmm");
+        System.out.println(format);
+
+/*        ScheduledExecutorService executorService = new ScheduledThreadPoolExecutor(1,
                 new BasicThreadFactory.Builder().namingPattern("example-schedule-pool-%d").daemon(false).build());
         executorService.scheduleAtFixedRate(new Runnable() {
             @Override
@@ -25,7 +28,7 @@ public class TimerTest {
                 System.out.println("run job->" + DateUtil.formatDateTime(new Date()));
                // executorService.shutdown();
             }
-        }, 0, 5, TimeUnit.SECONDS);
+        }, 0, 5, TimeUnit.SECONDS);*/
 
     }
 }

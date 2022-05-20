@@ -6,11 +6,18 @@ import lombok.NoArgsConstructor;
 
 /**
  * 个股分钟数据，包含前一分钟的数据
+ * @author haifeng
  */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class StockMinuteWithPreData {
+    /**
+     * 当前分钟数据
+     */
     private StockData current;
+    /**
+     * 前一分钟数据
+     */
     private StockData lastMinute;
 }

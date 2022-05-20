@@ -6,28 +6,33 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.db.Db;
 import cn.hutool.db.Entity;
 import cn.hutool.db.ds.simple.SimpleDataSource;
+import ink.haifeng.quotation.common.Constants;
 import ink.haifeng.quotation.model.dto.*;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * @author haifeng
  * @version 1.0
  * @date Created in 2022/4/27 17:58:14
  */
-public class ProductInfoSource extends RichSourceFunction<List<ProductDimensionData>> {
+public class ProductInfoSource extends RichSourceFunction<ProductBroadcastData> {
     private ParameterTool params;
     private SimpleDataSource source;
     private Db db;
 
     private final String format = "yyyyMMdd";
+
+    private final Set<String> configDays = new HashSet<>(5000);
 
     /**
      * 初始化数据库连接
@@ -43,58 +48,78 @@ public class ProductInfoSource extends RichSourceFunction<List<ProductDimensionD
     }
 
     @Override
-    public void run(SourceContext<List<ProductDimensionData>> ctx) throws Exception {
-        updateProductInfos(ctx);
-    }
+    public void run(SourceContext<ProductBroadcastData> ctx) throws Exception {
 
-
-    private void updateProductInfos(SourceContext<List<ProductDimensionData>> ctx){
         ScheduledExecutorService executorService = new ScheduledThreadPoolExecutor(1,
                 new BasicThreadFactory.Builder().namingPattern("product-info-schedule-pool-%d").daemon(false).build());
         executorService.scheduleAtFixedRate(() -> {
-            initDataSource();
-            List<ProductBasicInfo> basicInfos = basicInfos();
-            List<ProductStockConstituents> constituents = productStockConstituents();
-            Map<String, ProductPriceLowHigh> priceLowHighMap = fiveAndTwoYearHighLow(basicInfos);
-            List<ProductDimensionData> dataList = new ArrayList<>();
             String runDay = getCurrentRunDay();
-            for (ProductBasicInfo basicInfo : basicInfos) {
-                String productCode = basicInfo.getProductCode();
-                ProductDimensionData data = new ProductDimensionData(basicInfo);
-                for (ProductStockConstituents constituent : constituents) {
-                    if (constituent.getProductCode().equals(productCode)) {
-                        data.getConstituents().add(constituent);
-                    }
-                }
-                ProductPriceLowHigh lowHighPrice = priceLowHighMap.getOrDefault(productCode, new ProductPriceLowHigh());
-                data.setTwoYearHigh(lowHighPrice.getTwoYearHigh());
-                data.setTwoYearLow(lowHighPrice.getTwoYearLow());
-                data.setFiveYearHigh(lowHighPrice.getFiveYearHigh());
-                data.setFiveYearLow(lowHighPrice.getFiveYearLow());
-                if (String.valueOf(data.getTradeDay()).equals(runDay)) {
-                    dataList.add(data);
-                }
+            if (!configDays.contains(runDay)) {
+                updateProductInfos(ctx);
             }
-            closeDataSource();
-            ctx.collect(dataList);
         }, 0, 5, TimeUnit.SECONDS);
     }
+
+
+    private void updateProductInfos(SourceContext<ProductBroadcastData> ctx) {
+        String runDay = getCurrentRunDay();
+        initDataSource();
+        List<ProductBasicInfo> basicInfos = basicInfos(runDay);
+        List<ProductStockConstituents> constituents = productStockConstituents(runDay);
+        Map<String, ProductPriceLowHigh> priceLowHighMap = fiveAndTwoYearHighLow(basicInfos);
+        List<ProductInfo> dataList = new ArrayList<>(5000);
+        Set<String> stockList =
+                constituents.stream().map(ProductStockConstituents::getStockCode).collect(Collectors.toSet());
+        Map<String, BigDecimal> stockProCloseMap = stockProClose(stockList, runDay);
+        for (ProductBasicInfo basicInfo : basicInfos) {
+            String productCode = basicInfo.getProductCode();
+            ProductInfo data = new ProductInfo();
+            data.setBasicInfo(basicInfo);
+            for (ProductStockConstituents constituent : constituents) {
+                if (constituent.getProductCode().equals(productCode)) {
+                    String stockCode = constituent.getStockCode();
+                    constituent.setPreClose(stockProCloseMap.get(stockCode));
+                    data.getConstituents().add(constituent);
+                }
+            }
+            ProductPriceLowHigh lowHighPrice = priceLowHighMap.getOrDefault(productCode, new ProductPriceLowHigh());
+            data.setPriceLowHigh(lowHighPrice);
+            if (String.valueOf(data.getBasicInfo().getTradeDay()).equals(runDay)) {
+                dataList.add(data);
+            }
+        }
+        closeDataSource();
+        if (!basicInfos.isEmpty() && !constituents.isEmpty()) {
+            ProductBroadcastData broadcastData = new ProductBroadcastData(Integer.parseInt(runDay),dataList);
+            ctx.collect(broadcastData);
+            configDays.add(runDay);
+        } else {
+            int dayOfWeek = DateUtil.dayOfWeek(new Date());
+            if (dayOfWeek != 1 && dayOfWeek != 6) {
+                String minute = DateUtil.format(new Date(), "Hmm");
+                if (Integer.parseInt(minute) > 910) {
+                    // TODO 当日basic info 为空 请进行检查
+                    System.out.println("basic info 为空");
+                }
+            }
+        }
+    }
+
     @Override
     public void cancel() {
         source.close();
     }
 
 
-    private List<ProductBasicInfo> basicInfos() {
+    private List<ProductBasicInfo> basicInfos(String runDay) {
         List<ProductBasicInfo> infos = new ArrayList<>(50000);
-        String sql = "SELECT \n" + "    `trade_day`,\n" + "    `last_trade_day`,\n" + "    `product_code`,\n" + "    " +
-                "`product_name`,\n" + "    `adj_mkt_cap`,\n" + "    `last_adj_mkt_cap`,\n" + "    `divisor`,\n" + "  " +
-                "  `last_divisor`,\n" + "    `close_price`,\n" + "    `valid`\n" + "FROM `tb_product_index_basicinfo`" +
-                " where valid=1";
+        String sql = "SELECT  `trade_day`,`last_trade_day`,`product_code`,`product_name`,`adj_mkt_cap`," +
+                "`last_adj_mkt_cap`,`divisor`,`last_divisor`,`close_price`,`valid` FROM `tb_product_index_basicinfo`" +
+                " where valid=1 and trade_day=%s";
 
         List<Entity> query = null;
         try {
-            query = db.query(sql);
+            query = db.query(String.format(sql, runDay));
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -118,12 +143,12 @@ public class ProductInfoSource extends RichSourceFunction<List<ProductDimensionD
     /**
      * @return
      */
-    public List<ProductStockConstituents> productStockConstituents() {
-        String sql = "SELECT product_code,stock_code,adj_share FROM tb_product_index_constituents";
+    public List<ProductStockConstituents> productStockConstituents(String runDay) {
+        String sql = "SELECT product_code,stock_code,adj_share FROM tb_product_index_constituents where trade_day=%s";
         List<ProductStockConstituents> constituents = new ArrayList<>();
         List<Entity> entities = null;
         try {
-            entities = db.query(sql);
+            entities = db.query(String.format(sql, runDay));
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -135,6 +160,29 @@ public class ProductInfoSource extends RichSourceFunction<List<ProductDimensionD
             constituents.add(stockConstituents);
         }
         return constituents;
+    }
+
+
+    private Map<String, BigDecimal> stockProClose(Set<String> stockList, String tradeDay) {
+        String sql = "SELECT close_price from tb_stock_eod " +
+                "where stock_code='%s' and trade_day<'%s' " +
+                "order by trade_day desc limit 1";
+        Map<String, BigDecimal> preCloseMap = new HashMap<>(5000);
+        for (String stockCode : stockList) {
+            List<Entity> entities = null;
+            try {
+                entities = db.query(String.format(sql, stockCode, tradeDay));
+                for (Entity entity : entities) {
+                    BigDecimal closePrice = entity.getBigDecimal("close_price");
+                    if (closePrice != null) {
+                        preCloseMap.put(stockCode, closePrice);
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        return preCloseMap;
     }
 
     /**
@@ -196,7 +244,7 @@ public class ProductInfoSource extends RichSourceFunction<List<ProductDimensionD
 
     private String getCurrentRunDay() {
         String format = "yyyyMMdd";
-        String runDay = params.get("run.day", "");
+        String runDay = params.get(Constants.RUN_DAY, "");
         if (StrUtil.isEmpty(runDay)) {
             runDay = DateUtil.format(new Date(), format);
         }

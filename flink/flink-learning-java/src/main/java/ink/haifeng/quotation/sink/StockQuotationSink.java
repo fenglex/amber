@@ -8,6 +8,8 @@ import org.apache.flink.connector.jdbc.JdbcSink;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
+import java.util.Properties;
+
 /**
  * @author haifeng
  * @version 1.0
@@ -15,10 +17,10 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
  */
 public class StockQuotationSink implements Sink<StockQuotation> {
 
-    private final ParameterTool parameter;
+    private final Properties properties;
 
-    public StockQuotationSink(ParameterTool parameter) {
-        this.parameter = parameter;
+    public StockQuotationSink(Properties properties) {
+        this.properties = properties;
     }
 
     @Override
@@ -56,10 +58,10 @@ public class StockQuotationSink implements Sink<StockQuotation> {
             ps.setInt(25, quotation.getUpdateTime());
         }, JdbcExecutionOptions.builder().withBatchSize(500)
                 .withBatchIntervalMs(200).build(), new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-                .withUrl(parameter.get("jdbc.url"))
+                .withUrl(properties.getProperty("jdbc.url"))
                 .withDriverName("com.mysql.cj.jdbc.Driver")
-                .withUsername(parameter.get("jdbc.user"))
-                .withPassword(parameter.get("jdbc.password"))
+                .withUsername(properties.getProperty("jdbc.user"))
+                .withPassword(properties.getProperty("jdbc.password"))
                 .build());
     }
 }
