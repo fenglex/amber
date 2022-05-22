@@ -1,8 +1,7 @@
 package ink.haifeng.quotation.sink;
 
 import cn.hutool.core.map.MapUtil;
-import ink.haifeng.quotation.model.dto.RedisValue;
-import ink.haifeng.quotation.model.entity.StockDaily;
+import ink.haifeng.quotation.model.entity.RedisValue;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;

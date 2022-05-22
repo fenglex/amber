@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class StockMinuteWithPreData {
+public class StockDataWithPre {
     /**
      * 当前分钟数据
      */

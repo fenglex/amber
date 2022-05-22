@@ -1,7 +1,7 @@
 package ink.haifeng.quotation.handler;
 
 import ink.haifeng.quotation.model.dto.StockData;
-import ink.haifeng.quotation.model.dto.StockMinuteWithPreData;
+import ink.haifeng.quotation.model.dto.StockDataWithPre;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
@@ -22,16 +22,16 @@ import java.util.Properties;
  * @date Created in 2022/5/20 11:01:02
  */
 public class ToMinuteDataWithOutputHandler implements WithOutputHandler<SingleOutputStreamOperator<StockData>,
-        SingleOutputStreamOperator<StockMinuteWithPreData>> {
+        SingleOutputStreamOperator<StockDataWithPre>> {
     @Override
-    public SingleOutputStreamOperator<StockMinuteWithPreData> handler(SingleOutputStreamOperator<StockData> stream,
-                                                                      Properties properties) {
-        SingleOutputStreamOperator<StockMinuteWithPreData> stockMinuteData =
+    public SingleOutputStreamOperator<StockDataWithPre> handler(SingleOutputStreamOperator<StockData> stream,
+                                                                Properties properties) {
+        SingleOutputStreamOperator<StockDataWithPre> stockMinuteData =
                 stream.keyBy(StockData::getStockCode)
                         .window(TumblingEventTimeWindows.of(Time.minutes(1))).allowedLateness(Time.seconds(10))
                         .reduce((ReduceFunction<StockData>) (value1, value2) -> Long.parseLong(value1.getRealtime()) <= Long.parseLong(value2.getRealtime()) ? value2 : value1)
                         .keyBy(StockData::getStockCode)
-                        .map(new RichMapFunction<StockData, StockMinuteWithPreData>() {
+                        .map(new RichMapFunction<StockData, StockDataWithPre>() {
                             private ValueState<StockData> stockLastMinuteState;
 
                             @Override
@@ -42,22 +42,22 @@ public class ToMinuteDataWithOutputHandler implements WithOutputHandler<SingleOu
                             }
 
                             @Override
-                            public StockMinuteWithPreData map(StockData value) throws Exception {
+                            public StockDataWithPre map(StockData value) throws Exception {
                                 StockData last = stockLastMinuteState.value();
-                                StockMinuteWithPreData data;
+                                StockDataWithPre data;
                                 if (last != null && last.getTradeDay() == value.getTradeDay()) {
                                     // TODO drop
                                     System.out.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
                                             value.getStockCode(), value.minute(), value.getRealtime(),
                                             last.getStockCode(), last.minute(), last.getRealtime()));
-                                    data = new StockMinuteWithPreData(value, last);
+                                    data = new StockDataWithPre(value, last);
                                 } else {
-                                    data = new StockMinuteWithPreData(value, null);
+                                    data = new StockDataWithPre(value, null);
                                 }
                                 stockLastMinuteState.update(value);
                                 return data;
                             }
-                        }).returns(Types.POJO(StockMinuteWithPreData.class));
+                        }).returns(Types.POJO(StockDataWithPre.class));
 
         return stockMinuteData;
     }

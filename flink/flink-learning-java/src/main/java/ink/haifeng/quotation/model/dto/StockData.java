@@ -15,6 +15,7 @@ import java.math.RoundingMode;
 
 
 /**
+ * 原始数据
  * @author fenglex
  */
 @Data

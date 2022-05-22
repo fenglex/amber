@@ -2,7 +2,7 @@ package ink.haifeng.quotation.handler;
 
 import ink.haifeng.quotation.common.Constants;
 import ink.haifeng.quotation.common.DateUtils;
-import ink.haifeng.quotation.model.dto.RedisValue;
+import ink.haifeng.quotation.model.entity.RedisValue;
 import ink.haifeng.quotation.model.dto.StockData;
 import ink.haifeng.quotation.sink.RedisValueSink;
 import ink.haifeng.quotation.sink.SinkFactory;

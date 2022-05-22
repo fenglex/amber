@@ -1,19 +1,22 @@
 package ink.haifeng.quotation.model.dto;
 
-import ink.haifeng.quotation.model.entity.ProductIndexConstituents;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+
+import java.util.List;
 
 /**
  * @author haifeng
  * @version 1.0
- * @date Created in 2022/4/27 18:14:13
+ * @date Created in 2022/5/20 18:46:45
  */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class StringConstituent {
-    private String stock;
-    private ProductIndexConstituents constituents;
+@ToString
+public class BasicInfoData {
+    private int tradeDay;
+    private List<ProductInfo> infos;
 }

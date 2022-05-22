@@ -3,7 +3,7 @@ package ink.haifeng.quotation.handler;
 import cn.hutool.core.date.DateUtil;
 import ink.haifeng.quotation.common.Constants;
 import ink.haifeng.quotation.model.dto.StockData;
-import ink.haifeng.quotation.model.dto.StockMinuteWithPreData;
+import ink.haifeng.quotation.model.dto.StockDataWithPre;
 import ink.haifeng.quotation.model.entity.StockDaily;
 import ink.haifeng.quotation.sink.StockDailySink;
 import org.apache.flink.api.common.state.MapState;
@@ -22,11 +22,11 @@ import java.util.Properties;
  * @version 1.0
  * @date Created in 2022/5/19 19:00:52
  */
-public class StockDailyNoOutputHandler implements NoOutputHandler<SingleOutputStreamOperator<StockMinuteWithPreData>> {
+public class StockDailyNoOutputHandler implements NoOutputHandler<SingleOutputStreamOperator<StockDataWithPre>> {
     @Override
-    public void handler(SingleOutputStreamOperator<StockMinuteWithPreData> stream, Properties properties) {
+    public void handler(SingleOutputStreamOperator<StockDataWithPre> stream, Properties properties) {
         SingleOutputStreamOperator<StockData> dailyStream =
-                stream.map(StockMinuteWithPreData::getCurrent).keyBy(StockData::getTradeDay).process(new KeyedProcessFunction<Integer, StockData, StockData>() {
+                stream.map(StockDataWithPre::getCurrent).keyBy(StockData::getTradeDay).process(new KeyedProcessFunction<Integer, StockData, StockData>() {
                     private MapState<String, StockData> mapState;
 
 

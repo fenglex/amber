@@ -1,24 +1,39 @@
 package ink.haifeng.quotation.model.dto;
 
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-/**
- * @author haifeng
- * @version 1.0
- * @date Created in 2022/5/17 11:01:11
- */
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
-@ToString
+@NoArgsConstructor
 public class ProductInfo {
+
+    public ProductInfo(String productCode) {
+        this.productCode = productCode;
+    }
+
+    private String productCode;
+    /**
+     * 产品基础信息
+     */
     private ProductBasicInfo basicInfo;
-    private List<ProductStockConstituents> constituents = new ArrayList<>();
-    private ProductPriceLowHigh priceLowHigh;
+    /**
+     * 产品成分股
+     */
+    private List<ProductConstituents> constituents = new ArrayList<>();
+    /**
+     * 产品历史最高最低价
+     */
+    private ProductLowHighPrice lowHighPrice;
+    /**
+     * 产品成分股前日收盘价
+     */
+    private Map<String, StockPreClosePrice> stockPreClose = new HashMap<>();
 }

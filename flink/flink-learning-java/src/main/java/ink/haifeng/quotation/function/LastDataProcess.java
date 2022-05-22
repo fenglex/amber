@@ -27,8 +27,10 @@ public class LastDataProcess extends KeyedProcessFunction<String, StockData, Sto
                                Collector<StockData> out) throws Exception {
 
         int minute = value.minute();
-        if (minute == Constants.MINUTE_9_25 || minute == Constants.MINUTE_11_29 || minute == Constants.MINUTE_15_00) {
-
+        if (minute == Constants.MINUTE_9_25
+                || minute == Constants.MINUTE_11_29
+                || minute == Constants.MINUTE_15_00
+                || minute == Constants.MINUTE_14_57) {
             // TODO 修改为晚60秒发送
             ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5 * 1000L);
         }

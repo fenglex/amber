@@ -1,6 +1,8 @@
 package ink.haifeng.quotation.model.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
@@ -10,6 +12,8 @@ import java.math.BigDecimal;
  * @date Created in 2022/5/17 11:07:43
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductBasicInfo {
     private int tradeDay;
     private int lastTradeDay;

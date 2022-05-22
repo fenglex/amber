@@ -4,15 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * @author haifeng
- * @version 1.0
- * @date Created in 2022/4/27 14:01:16
- */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserTimer {
-    private String uid;
-    private long time;
+public class ConfigTradeDayState {
+    private Integer tradeDay;
+    private Boolean isTradeDay;
 }

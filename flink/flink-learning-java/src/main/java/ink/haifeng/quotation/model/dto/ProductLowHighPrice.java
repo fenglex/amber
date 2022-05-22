@@ -15,7 +15,7 @@ import java.math.BigDecimal;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ProductPriceLowHigh {
+public class ProductLowHighPrice {
     private String productCode;
     /**
      * 两年最高
