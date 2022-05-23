@@ -1,19 +1,16 @@
 package ink.haifeng.quotation.handler;
 
-import ink.haifeng.quotation.QuoteStream;
 import ink.haifeng.quotation.model.dto.*;
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.functions.RichAggregateFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.*;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 
 import java.math.BigDecimal;
@@ -39,45 +36,65 @@ public class ProductMinuteNoOutPutHandler implements NoOutputHandler<SingleOutpu
      * @return
      */
     private SingleOutputStreamOperator<StockRelateProductData> processRelateProduct(SingleOutputStreamOperator<StockDataWithPre> stream) {
-        return stream.keyBy(e -> e.getCurrent().getStockCode())
+        return stream.keyBy(e -> e.getCurrent().getTradeDay())
+                .window(TumblingEventTimeWindows.of(org.apache.flink.streaming.api.windowing.time.Time.minutes(1)))
+                .aggregate(new AggregateFunction<StockDataWithPre, List<StockDataWithPre>, ProductMinuteData>() {
+
+                    @Override
+                    public List<StockDataWithPre> createAccumulator() {
+                        return new ArrayList<>();
+                    }
+
+                    @Override
+                    public List<StockDataWithPre> add(StockDataWithPre value, List<StockDataWithPre> accumulator) {
+                        accumulator.add(value);
+                        return accumulator;
+                    }
+
+                    @Override
+                    public ProductMinuteData getResult(List<StockDataWithPre> accumulator) {
+                        int tradeDay = accumulator.get(0).getCurrent().getTradeDay();
+                        return new ProductMinuteData(tradeDay, accumulator);
+                    }
+
+                    @Override
+                    public List<StockDataWithPre> merge(List<StockDataWithPre> a, List<StockDataWithPre> b) {
+                        a.addAll(b);
+                        return a;
+                    }
+                }).keyBy(ProductMinuteData::getTradeDay)
                 .connect(broadcastStream)
-                .process(new KeyedBroadcastProcessFunction<String, StockDataWithPre, BasicInfoData,
+                .process(new KeyedBroadcastProcessFunction<String, ProductMinuteData, BasicInfoData,
                         StockRelateProductData>() {
+
+                    @Override
+                    public void processElement(ProductMinuteData value, KeyedBroadcastProcessFunction<String,
+                            ProductMinuteData, BasicInfoData, StockRelateProductData>.ReadOnlyContext ctx,
+                                               Collector<StockRelateProductData> out) throws Exception {
+
+                    }
+
+                    @Override
+                    public void processBroadcastElement(BasicInfoData value, KeyedBroadcastProcessFunction<String,
+                            ProductMinuteData, BasicInfoData, StockRelateProductData>.Context ctx, Collector<StockRelateProductData> out) throws Exception {
+
+                    }
 
                     private ListState<StockDataWithPre> cacheListState;
 
                     @Override
                     public void open(Configuration parameters) throws Exception {
-
                         ListStateDescriptor<StockDataWithPre> listStateDescriptor = new ListStateDescriptor<>(
                                 "minute_product_state", Types.POJO(StockDataWithPre.class));
+                        StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(Time.hours(6))
+                                .setUpdateType(StateTtlConfig.UpdateType.OnReadAndWrite)
+                                .neverReturnExpired()
+                                .build();
+                        listStateDescriptor.enableTimeToLive(ttlConfig);
                         cacheListState = getRuntimeContext().getListState(listStateDescriptor);
                     }
 
-                    @Override
-                    public void onTimer(long timestamp, KeyedBroadcastProcessFunction<String, StockDataWithPre,
-                            BasicInfoData, StockRelateProductData>.OnTimerContext ctx,
-                                        Collector<StockRelateProductData> out) throws Exception {
-                     /*   BasicInfoData basicInfo = basicInfoDataValueState.value();
-                        if (basicInfo!=null){
-                            for (StockDataWithPre dataWithPre : cacheListState.get()) {
-                                StockData current = dataWithPre.getCurrent();
-                                if (current.getTradeDay() == basicInfo.getTradeDay()) {
-                                    for (ProductInfo info : basicInfo.getInfos()) {
-                                        for (ProductConstituents constituent : info.getConstituents()) {
-                                            if (constituent.getStockCode().equals(current.getStockCode())) {
-                                                out.collect(new StockRelateProductData(info.getProductCode(),
-                                                dataWithPre,
-                                                        info));
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            cacheListState.clear();
-                        }*/
-                    }
+
 
                     @Override
                     public void processElement(StockDataWithPre value, KeyedBroadcastProcessFunction<String,
@@ -127,7 +144,7 @@ public class ProductMinuteNoOutPutHandler implements NoOutputHandler<SingleOutpu
 
     @Override
     public void handler(SingleOutputStreamOperator<StockDataWithPre> stream, Properties properties) {
-        processRelateProduct(stream).keyBy(StockRelateProductData::getProductCode)
+        processRelateProduct(stream).keyBy(StockRelateProductData::getTradeDay)
                 .window(TumblingEventTimeWindows.of(Time.minutes(1)))
                 .aggregate(new AggregateFunction<StockRelateProductData, List<StockRelateProductData>,
                         List<StockRelateProductData>>() {

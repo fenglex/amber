@@ -13,9 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class StockRelateProductData {
-
-    private String productCode;
+    private int tradeDay;
     private StockDataWithPre data;
-
     private ProductInfo productInfo;
 }

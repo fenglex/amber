@@ -25,7 +25,7 @@ public class StockRealTimeNoOutputHandler implements NoOutputHandler<SingleOutpu
     @Override
     public void handler(SingleOutputStreamOperator<StockData> stream, Properties properties) {
         RedisValueSink redisValueSink = SinkFactory.getSink(RedisValueSink.class, properties);
-        stream.filter(e -> e.getState() != -2)
+        stream.filter(e -> e.getState() >0)
                 .keyBy(StockData::getStockCode)
                 .window(TumblingEventTimeWindows.of(Time.seconds(30)))
                 .reduce((ReduceFunction<StockData>) (value1, value2) -> Long.parseLong(value1.getRealtime()) > Long.parseLong(value2.getRealtime()) ? value1 : value2)

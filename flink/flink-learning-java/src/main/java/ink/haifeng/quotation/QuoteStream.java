@@ -4,6 +4,7 @@ import ink.haifeng.quotation.common.Constants;
 import ink.haifeng.quotation.function.DataFilterFunction;
 import ink.haifeng.quotation.function.LastDataProcess;
 import ink.haifeng.quotation.handler.ProductMinuteNoOutPutHandler;
+import ink.haifeng.quotation.handler.StockRealTimeNoOutputHandler;
 import ink.haifeng.quotation.handler.ToMinuteDataWithOutputHandler;
 import ink.haifeng.quotation.handler.TradeDayWithOutputProcessFunction;
 import ink.haifeng.quotation.model.dto.BasicInfoData;
@@ -102,7 +103,7 @@ public class QuoteStream {
         SingleOutputStreamOperator<StockDataWithPre> minuteStockStream =
                 minuteDataWithOutputHandler.handler(streamWithWaterMark, properties);
 
-       minuteStockStream.print("minute-data");
+      // minuteStockStream.print("minute-data");
 /*
         StockMinuteNoOutputHandler stockMinuteNoOutputHandler = new StockMinuteNoOutputHandler();
         stockMinuteNoOutputHandler.handler(minuteStockStream, properties);
