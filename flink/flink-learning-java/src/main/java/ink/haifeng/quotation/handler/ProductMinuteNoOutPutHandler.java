@@ -1,16 +1,16 @@
 package ink.haifeng.quotation.handler;
 
+import ink.haifeng.quotation.QuoteStream;
 import ink.haifeng.quotation.model.dto.*;
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.functions.RichAggregateFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.state.*;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -20,6 +20,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
 
+/**
+ * @author haifeng
+ */
 public class ProductMinuteNoOutPutHandler implements NoOutputHandler<SingleOutputStreamOperator<StockDataWithPre>> {
 
     private BroadcastStream<BasicInfoData> broadcastStream;
@@ -28,22 +31,23 @@ public class ProductMinuteNoOutPutHandler implements NoOutputHandler<SingleOutpu
         this.broadcastStream = broadcastStream;
     }
 
-    @Override
-    public void handler(SingleOutputStreamOperator<StockDataWithPre> stream, Properties properties) {
 
-        SingleOutputStreamOperator<StockRelateProductData> process = stream.keyBy(e -> e.getCurrent().getStockCode())
+    /**
+     * 将数据与其关联产品相关联
+     *
+     * @param stream
+     * @return
+     */
+    private SingleOutputStreamOperator<StockRelateProductData> processRelateProduct(SingleOutputStreamOperator<StockDataWithPre> stream) {
+        return stream.keyBy(e -> e.getCurrent().getStockCode())
                 .connect(broadcastStream)
                 .process(new KeyedBroadcastProcessFunction<String, StockDataWithPre, BasicInfoData,
                         StockRelateProductData>() {
 
-                    private ValueState<BasicInfoData> basicInfoDataValueState;
                     private ListState<StockDataWithPre> cacheListState;
 
                     @Override
                     public void open(Configuration parameters) throws Exception {
-                        ValueStateDescriptor<BasicInfoData> tradeDayStateDescriptor = new ValueStateDescriptor<>(
-                                "product_trade_day_state", Types.POJO(BasicInfoData.class));
-                        basicInfoDataValueState = getRuntimeContext().getState(tradeDayStateDescriptor);
 
                         ListStateDescriptor<StockDataWithPre> listStateDescriptor = new ListStateDescriptor<>(
                                 "minute_product_state", Types.POJO(StockDataWithPre.class));
@@ -51,21 +55,19 @@ public class ProductMinuteNoOutPutHandler implements NoOutputHandler<SingleOutpu
                     }
 
                     @Override
-                    public void processElement(StockDataWithPre value, KeyedBroadcastProcessFunction<String,
-                            StockDataWithPre
-                            , BasicInfoData, StockRelateProductData>.ReadOnlyContext ctx,
-                                               Collector<StockRelateProductData> out) throws Exception {
-                        System.out.println(value);
-                        BasicInfoData basicInfo = basicInfoDataValueState.value();
-                        cacheListState.add(value);
-                        if (basicInfo != null && basicInfo.getTradeDay() == value.getCurrent().getTradeDay()) {
+                    public void onTimer(long timestamp, KeyedBroadcastProcessFunction<String, StockDataWithPre,
+                            BasicInfoData, StockRelateProductData>.OnTimerContext ctx,
+                                        Collector<StockRelateProductData> out) throws Exception {
+                     /*   BasicInfoData basicInfo = basicInfoDataValueState.value();
+                        if (basicInfo!=null){
                             for (StockDataWithPre dataWithPre : cacheListState.get()) {
                                 StockData current = dataWithPre.getCurrent();
                                 if (current.getTradeDay() == basicInfo.getTradeDay()) {
                                     for (ProductInfo info : basicInfo.getInfos()) {
                                         for (ProductConstituents constituent : info.getConstituents()) {
-                                            if (constituent.getStockCode().equals(value.getCurrent().getStockCode())) {
-                                                out.collect(new StockRelateProductData(info.getProductCode(), value,
+                                            if (constituent.getStockCode().equals(current.getStockCode())) {
+                                                out.collect(new StockRelateProductData(info.getProductCode(),
+                                                dataWithPre,
                                                         info));
                                                 break;
                                             }
@@ -73,6 +75,41 @@ public class ProductMinuteNoOutPutHandler implements NoOutputHandler<SingleOutpu
                                     }
                                 }
                             }
+                            cacheListState.clear();
+                        }*/
+                    }
+
+                    @Override
+                    public void processElement(StockDataWithPre value, KeyedBroadcastProcessFunction<String,
+                            StockDataWithPre
+                            , BasicInfoData, StockRelateProductData>.ReadOnlyContext ctx,
+                                               Collector<StockRelateProductData> out) throws Exception {
+
+                        MapStateDescriptor<Void, BasicInfoData> basicInfoBroadcastStateDescriptor =
+                                new MapStateDescriptor<>(
+                                        "basic_info_broadcast_state", Types.VOID, Types.POJO(BasicInfoData.class));
+
+                        BasicInfoData basicInfo = ctx.getBroadcastState(basicInfoBroadcastStateDescriptor).get(null);
+                        cacheListState.add(value);
+                        if (basicInfo == null) {
+                            System.out.println("info-data-empty");
+                            ctx.timerService().registerProcessingTimeTimer(ctx.currentProcessingTime() + 30000L);
+                        } else {
+                            for (StockDataWithPre dataWithPre : cacheListState.get()) {
+                                StockData current = dataWithPre.getCurrent();
+                                if (current.getTradeDay() == basicInfo.getTradeDay()) {
+                                    for (ProductInfo info : basicInfo.getInfos()) {
+                                        Map<String, ProductConstituents> constituentsMap = info.getConstituents();
+                                        ProductConstituents productConstituents =
+                                                constituentsMap.get(current.getStockCode());
+                                        if (productConstituents != null) {
+                                            out.collect(new StockRelateProductData(info.getProductCode(), dataWithPre
+                                                    , info));
+                                        }
+                                    }
+                                }
+                            }
+                            cacheListState.clear();
                         }
                     }
 
@@ -80,97 +117,128 @@ public class ProductMinuteNoOutPutHandler implements NoOutputHandler<SingleOutpu
                     public void processBroadcastElement(BasicInfoData value, KeyedBroadcastProcessFunction<String,
                             StockDataWithPre, BasicInfoData, StockRelateProductData>.Context ctx,
                                                         Collector<StockRelateProductData> out) throws Exception {
-                        basicInfoDataValueState.update(value);
+                        MapStateDescriptor<Void, BasicInfoData> basicInfoBroadcastStateDescriptor =
+                                new MapStateDescriptor<>(
+                                        "basic_info_broadcast_state", Types.VOID, Types.POJO(BasicInfoData.class));
+                        ctx.getBroadcastState(basicInfoBroadcastStateDescriptor).put(null, value);
                     }
                 });
+    }
 
-        SingleOutputStreamOperator<ProductQuotation> productMinute =
-                process.keyBy(StockRelateProductData::getProductCode).window(TumblingEventTimeWindows.of(Time.minutes(1))).aggregate(new AggregateFunction<StockRelateProductData, List<StockRelateProductData>, ProductQuotation>() {
+    @Override
+    public void handler(SingleOutputStreamOperator<StockDataWithPre> stream, Properties properties) {
+        processRelateProduct(stream).keyBy(StockRelateProductData::getProductCode)
+                .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+                .aggregate(new AggregateFunction<StockRelateProductData, List<StockRelateProductData>,
+                        List<StockRelateProductData>>() {
                     @Override
                     public List<StockRelateProductData> createAccumulator() {
                         return new ArrayList<>();
                     }
 
                     @Override
-                    public List<StockRelateProductData> add(StockRelateProductData stockRelateProductData,
-                                                            List<StockRelateProductData> list) {
-                        list.add(stockRelateProductData);
-                        return list;
+                    public List<StockRelateProductData> add(StockRelateProductData value,
+                                                            List<StockRelateProductData> accumulator) {
+                        accumulator.add(value);
+                        return accumulator;
                     }
 
                     @Override
-                    public ProductQuotation getResult(List<StockRelateProductData> stockRelateProductData) {
-                        ProductQuotation quotation = new ProductQuotation();
+                    public List<StockRelateProductData> getResult(List<StockRelateProductData> accumulator) {
+                        return accumulator;
+                    }
+
+                    @Override
+                    public List<StockRelateProductData> merge(List<StockRelateProductData> a,
+                                                              List<StockRelateProductData> b) {
+                        a.addAll(b);
+                        return a;
+                    }
+                }).map(new RichMapFunction<List<StockRelateProductData>, ProductQuotation>() {
+                    private MapState<String, StockData> stockDataMapState;
+
+                    @Override
+                    public void open(Configuration parameters) throws Exception {
+                        MapStateDescriptor<String, StockData> stockDataMapStateDescriptor =
+                                new MapStateDescriptor<>("product_stock_cache_state", Types.STRING,
+                                        Types.POJO(StockData.class));
+                        stockDataMapState = getRuntimeContext().getMapState(stockDataMapStateDescriptor);
+                    }
+
+                    @Override
+                    public ProductQuotation map(List<StockRelateProductData> value) throws Exception {
                         BigDecimal sum = new BigDecimal("0");
-                        long amount = 0L, totalAmount = 0L;
+                        long amount = 0, totalAmount = 0;
                         Set<String> stockSet = new HashSet<>();
-                        ProductInfo productInfo = null;
-                        int tradeTime = 0;
-                        for (StockRelateProductData relateProductData : stockRelateProductData) {
-                            StockDataWithPre data = relateProductData.getData();
-                            StockData current = data.getCurrent();
-                            if (tradeTime != 0 && tradeTime != current.minute()) {
-                                System.out.println("产品分钟数据异常");
-                            }
+                        Map<String, ProductConstituents> constituentsMap = null;
+                        Map<String, StockPreClosePrice> preClosePriceMap = null;
+                        ProductBasicInfo basicInfo = null;
+                        int tradeDay = 0, tradeTime = 0;
+                        for (StockRelateProductData data : value) {
+                            ProductInfo productInfo = data.getProductInfo();
+                            basicInfo = productInfo.getBasicInfo();
+                            constituentsMap = productInfo.getConstituents();
+                            StockDataWithPre stockDataWithPre = data.getData();
+                            StockData current = stockDataWithPre.getCurrent();
+                            tradeDay = current.getTradeDay();
                             tradeTime = current.minute();
-                            StockData lastData = data.getLastMinute();
-                            productInfo = relateProductData.getProductInfo();
-                            stockSet.add(current.getStockCode());
+                            StockData last = stockDataWithPre.getLastMinute();
+                            preClosePriceMap = productInfo.getStockPreClose();
                             totalAmount += current.getAmount();
-                            amount += current.getAmount() - lastData.getAmount();
-                            for (ProductConstituents constituent : productInfo.getConstituents()) {
-                                if (constituent.getStockCode().equals(current.getStockCode())) {
-                                    sum = sum.add(current.getPrice()).multiply(new BigDecimal(constituent.getAdjShare() + ""));
-                                    break;
-                                }
+                            if (last != null) {
+                                amount += current.getAmount() - last.getAmount();
+                            } else {
+                                amount += current.getAmount();
                             }
+                            ProductConstituents constituents = constituentsMap.get(current.getStockCode());
+                            sum = sum.add(current.getPrice()).multiply(new BigDecimal(constituents.getAdjShare() + ""));
+                            stockSet.add(current.getStockCode());
                         }
-                        assert productInfo != null;
-                        List<ProductConstituents> constituents = productInfo.getConstituents();
-                        Map<String, StockPreClosePrice> stockPreCloseMap = productInfo.getStockPreClose();
-                        if (stockSet.size() < constituents.size()) {
-                            for (ProductConstituents constituent : constituents) {
-                                if (!stockSet.contains(constituent.getStockCode())) {
-                                    StockPreClosePrice stockPreClosePrice =
-                                            stockPreCloseMap.get(constituent.getStockCode());
-                                    String log = "use preClose:productCode:%s stockCode:%s tradeDay:%s " + "price:%s";
-                                    if (stockPreClosePrice != null) {
-                                        sum = sum.add(stockPreClosePrice.getPreClose()).multiply(new BigDecimal(constituent.getAdjShare() + ""));
-                                        log = String.format(log, productInfo.getProductCode(),
-                                                constituent.getStockCode(),
-                                                stockPreClosePrice.getTradeDay(), stockPreClosePrice.getPreClose());
+                        assert constituentsMap != null;
+                        if (stockSet.size() < constituentsMap.size()) {
+                            for (String stock : constituentsMap.keySet()) {
+                                if (!stockSet.contains(stock)) {
+                                    ProductConstituents constituents = constituentsMap.get(stock);
+                                    StockData stockData = stockDataMapState.get(stock);
+                                    if (stockData != null) {
+                                        sum = sum.add(stockData.getPrice())
+                                                .multiply(new BigDecimal(constituents.getAdjShare() + ""));
                                     } else {
-                                        log = String.format(log, productInfo.getProductCode(),
-                                                constituent.getStockCode(),
-                                                null, null);
+                                        StockPreClosePrice preClosePrice = preClosePriceMap.getOrDefault(stock,
+                                                new StockPreClosePrice());
+                                        sum = sum.add(preClosePrice.getPreClose())
+                                                .multiply(new BigDecimal(constituents.getAdjShare() + ""));
                                     }
-                                    System.out.println(log);
                                 }
                             }
                         }
-                        ProductBasicInfo basicInfo = productInfo.getBasicInfo();
-                        quotation.setProductCode(productInfo.getProductCode());
+                        for (StockRelateProductData data : value) {
+                            StockData current = data.getData().getCurrent();
+                            stockDataMapState.put(current.getStockCode(), current);
+                        }
+                        List<String> removeKeys = new ArrayList<>();
+                        for (StockData stockData : stockDataMapState.values()) {
+                            if (stockData.getTradeDay() != tradeDay) {
+                                removeKeys.add(stockData.getStockCode());
+                            }
+                        }
+                        for (String removeKey : removeKeys) {
+                            stockDataMapState.remove(removeKey);
+                        }
+                        ProductQuotation quotation = new ProductQuotation();
+                        BigDecimal price = sum.divide(basicInfo.getDivisor(), 10, RoundingMode.HALF_UP)
+                                .multiply(new BigDecimal("1000"));
+                        quotation.setProductCode(basicInfo.getProductCode());
                         quotation.setProductName(basicInfo.getProductName());
-                        quotation.setTradeDay(basicInfo.getTradeDay());
-                        quotation.setAmount(amount);
-                        quotation.setTotalAmount(totalAmount);
-                        BigDecimal price =
-                                sum.divide(basicInfo.getDivisor(), 10, RoundingMode.HALF_UP).multiply(new BigDecimal("1000"));
+                        quotation.setTradeDay(tradeDay);
+                        quotation.setTradeTime(tradeTime);
                         quotation.setPrice(price);
                         quotation.setPreClose(basicInfo.getClosePrice());
-                        System.out.println(quotation);
+                        quotation.setAmount(amount);
+                        quotation.setTotalAmount(totalAmount);
                         return quotation;
                     }
-
-                    @Override
-                    public List<StockRelateProductData> merge(List<StockRelateProductData> stockRelateProductData,
-                                                              List<StockRelateProductData> acc1) {
-                        stockRelateProductData.addAll(acc1);
-                        return stockRelateProductData;
-                    }
-                });
-
-        productMinute.print("product_minute");
+                }).print("product-test");
 
     }
 }

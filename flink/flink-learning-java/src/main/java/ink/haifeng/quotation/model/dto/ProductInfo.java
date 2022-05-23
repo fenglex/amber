@@ -10,6 +10,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @author haifeng
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -27,7 +30,7 @@ public class ProductInfo {
     /**
      * 产品成分股
      */
-    private List<ProductConstituents> constituents = new ArrayList<>();
+    private Map<String, ProductConstituents> constituents = new HashMap<>();
     /**
      * 产品历史最高最低价
      */

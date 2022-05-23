@@ -70,6 +70,7 @@ public class ProductInfoSource extends RichSourceFunction<BasicInfoData> {
                 }
             } catch (Exception e) {
                 System.out.println(e.getMessage());
+                e.printStackTrace();
                 log.error("初始化basic_info数据失败");
             }
             ThreadUtil.sleep(5, TimeUnit.MINUTES);
@@ -83,11 +84,15 @@ public class ProductInfoSource extends RichSourceFunction<BasicInfoData> {
         log.info("获取basic—info数据结束,总计{}", basicInfos.size());
         List<ProductConstituents> constituents = productStockConstituents(tradeDay);
         log.info("获取constituents数据结束,总计{}", constituents.size());
-        Map<String, ProductLowHighPrice> priceLowHighMap = fiveAndTwoYearHighLow(basicInfos, tradeDay);
+        // TODO remove
+        // Map<String, ProductLowHighPrice> priceLowHighMap = fiveAndTwoYearHighLow(basicInfos, tradeDay);
+        Map<String, ProductLowHighPrice> priceLowHighMap = new HashMap<>();
         log.info("获取历史最高最低价数据结束,总计{}", priceLowHighMap.size());
         Set<String> stockList =
                 constituents.stream().map(ProductConstituents::getStockCode).collect(Collectors.toSet());
-        Map<String, StockPreClosePrice> stockProCloseMap = stockProClose(stockList, tradeDay);
+        // TODO remove
+        // Map<String, StockPreClosePrice> stockProCloseMap = stockProClose(stockList, tradeDay);
+        Map<String, StockPreClosePrice> stockProCloseMap = new HashMap<>();
         log.info("获取个股历史收盘价,总计{}", stockProCloseMap.size());
         BasicInfoData basicInfoData = new BasicInfoData();
         List<ProductInfo> infos = new ArrayList<>(5000);
@@ -102,7 +107,7 @@ public class ProductInfoSource extends RichSourceFunction<BasicInfoData> {
                 if (constituent.getProductCode().equals(productCode)) {
                     String stockCode = constituent.getStockCode();
                     StockPreClosePrice stockPreClosePrice = stockProCloseMap.get(stockCode);
-                    productInfo.getConstituents().add(constituent);
+                    productInfo.getConstituents().put(constituent.getStockCode(), constituent);
                     productInfo.getStockPreClose().put(stockCode, stockPreClosePrice);
                 }
             }
@@ -180,7 +185,7 @@ public class ProductInfoSource extends RichSourceFunction<BasicInfoData> {
                 BigDecimal closePrice = resultSet.getBigDecimal("close_price");
                 int tradeDay1 = resultSet.getInt("trade_day");
                 if (closePrice != null) {
-                    preCloseMap.put(stockCode, new StockPreClosePrice(stockCode,tradeDay1,closePrice));
+                    preCloseMap.put(stockCode, new StockPreClosePrice(stockCode, tradeDay1, closePrice));
                 }
             }
         }
@@ -202,8 +207,11 @@ public class ProductInfoSource extends RichSourceFunction<BasicInfoData> {
         String fiveYearAgo = DateUtil.format(DateUtil.offset(DateUtil.parse(tradeDay, format), DateField.YEAR, -2),
                 format);
         String sql =
-                "SELECT   " + "  product_code," + "  IF(MAX(high_price) > MAX(close_price),MAX(high_price), MAX" +
-                        "(close_price)) high_price, " + "  IF(MIN(low_price) < MIN(close_price),MIN(low_price), MIN" + "(close_price)) low_price " + "FROM tb_product_index_eod " + "WHERE  trade_day > %s AND trade_day <%s" + "  AND product_code = '%s' ";
+                "SELECT  product_code," +
+                        " IF(MAX(high_price) > MAX(close_price),MAX(high_price), MAX(close_price)) high_price," +
+                        " IF(MIN(low_price) < MIN(close_price),MIN(low_price), MIN" + "(close_price)) low_price " +
+                        "FROM tb_product_index_eod " +
+                        "WHERE  trade_day > %s AND trade_day <%s  AND product_code = '%s'";
 
         Map<String, ProductLowHighPrice> productPriceLowHighMap = new HashMap<>(5000);
         Statement statement = connection.createStatement();

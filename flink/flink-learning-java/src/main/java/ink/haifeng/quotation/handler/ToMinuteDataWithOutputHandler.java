@@ -47,9 +47,9 @@ public class ToMinuteDataWithOutputHandler implements WithOutputHandler<SingleOu
                                 StockDataWithPre data;
                                 if (last != null && last.getTradeDay() == value.getTradeDay()) {
                                     // TODO drop
-                                    System.out.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
+                              /*      System.out.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
                                             value.getStockCode(), value.minute(), value.getRealtime(),
-                                            last.getStockCode(), last.minute(), last.getRealtime()));
+                                            last.getStockCode(), last.minute(), last.getRealtime()));*/
                                     data = new StockDataWithPre(value, last);
                                 } else {
                                     data = new StockDataWithPre(value, null);

@@ -3,7 +3,9 @@ package ink.haifeng.quotation;
 import ink.haifeng.quotation.common.Constants;
 import ink.haifeng.quotation.function.DataFilterFunction;
 import ink.haifeng.quotation.function.LastDataProcess;
-import ink.haifeng.quotation.handler.*;
+import ink.haifeng.quotation.handler.ProductMinuteNoOutPutHandler;
+import ink.haifeng.quotation.handler.ToMinuteDataWithOutputHandler;
+import ink.haifeng.quotation.handler.TradeDayWithOutputProcessFunction;
 import ink.haifeng.quotation.model.dto.BasicInfoData;
 import ink.haifeng.quotation.model.dto.StockData;
 import ink.haifeng.quotation.model.dto.StockDataWithPre;
@@ -13,7 +15,6 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
@@ -22,8 +23,6 @@ import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
-import org.apache.flink.util.Collector;
 
 import java.time.Duration;
 import java.util.Properties;
@@ -41,6 +40,7 @@ public class QuoteStream {
         env.setParallelism(1);
         env.setStateBackend(new EmbeddedRocksDBStateBackend());
         env.getConfig().setAutoWatermarkInterval(200);
+        env.enableCheckpointing(2000L);
         args = new String[]{"-run.day", "20220418", "-redis.host", "192.168.2.8", "-redis.port", "6379", "-redis" +
                 ".password", "123456", "-redis.database", "2", "-jdbc.url", "jdbc:mysql://192.168.2" + ".8:3306" +
                 "/db_n_turbo_quotation?useUnicode=true&characterEncoding=UTF8" + "&autoReconnect=true", "-jdbc" +
@@ -72,9 +72,10 @@ public class QuoteStream {
 
         DataStreamSource<BasicInfoData> basicInfoStream = env.addSource(new ProductInfoSource()).setParallelism(1);
 
-        MapStateDescriptor<Void, BasicInfoData> basicInfoStateDescriptor = new MapStateDescriptor<>(
-                "product_basic_info_state", Types.VOID, Types.POJO(BasicInfoData.class));
-        BroadcastStream<BasicInfoData> broadcastStream = basicInfoStream.broadcast(basicInfoStateDescriptor);
+        MapStateDescriptor<Void, BasicInfoData> basicInfoBroadcastStateDescriptor = new MapStateDescriptor<>(
+                "basic_info_broadcast_state", Types.VOID, Types.POJO(BasicInfoData.class));
+        BroadcastStream<BasicInfoData> broadcastStream =
+                basicInfoStream.broadcast(basicInfoBroadcastStateDescriptor);
 
         TradeDayWithOutputProcessFunction tradeDayFilterProcessFunction =
                 new TradeDayWithOutputProcessFunction(broadcastStream);
@@ -93,15 +94,15 @@ public class QuoteStream {
                                         .getTimestamp())).filter(e -> e.getState() > 0);
 
         // 处理个股实时数据
-        StockRealTimeNoOutputHandler realTimeHandler = new StockRealTimeNoOutputHandler();
-        realTimeHandler.handler(streamWithWaterMark, properties);
+//        StockRealTimeNoOutputHandler realTimeHandler = new StockRealTimeNoOutputHandler();
+//        realTimeHandler.handler(streamWithWaterMark, properties);
 
         // 处理个股每分钟数据
         ToMinuteDataWithOutputHandler minuteDataWithOutputHandler = new ToMinuteDataWithOutputHandler();
         SingleOutputStreamOperator<StockDataWithPre> minuteStockStream =
                 minuteDataWithOutputHandler.handler(streamWithWaterMark, properties);
 
-       // minuteStockStream.print("minute-data");
+       minuteStockStream.print("minute-data");
 /*
         StockMinuteNoOutputHandler stockMinuteNoOutputHandler = new StockMinuteNoOutputHandler();
         stockMinuteNoOutputHandler.handler(minuteStockStream, properties);
@@ -113,9 +114,8 @@ public class QuoteStream {
   /*      StockDailyNoOutputHandler stockDailyNoOutputHandler = new StockDailyNoOutputHandler();
         stockDailyNoOutputHandler.handler(minuteStockStream, properties);*/
 
-
         ProductMinuteNoOutPutHandler handler = new ProductMinuteNoOutPutHandler(broadcastStream);
-        handler.handler(minuteStockStream,properties);
+        handler.handler(minuteStockStream, properties);
 
         env.execute();
     }

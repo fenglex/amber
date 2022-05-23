@@ -4,6 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ *
+ * stock关联的产品数据
+ * @author haifeng
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

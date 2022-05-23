@@ -36,10 +36,10 @@ public class DataFilterFunction extends RichFilterFunction<StockData> {
         if (!DateUtils.isTradeTime(value.minute())) {
             return false;
         }
-     /*   int dayOfWeek = DateUtil.dayOfWeek(new Date());
+        int dayOfWeek = DateUtil.dayOfWeek(new Date());
         if (dayOfWeek == 1 || dayOfWeek == 6) {
             return false;
-        }*/
+        }
         String current = DateUtil.format(new Date(), "yyyyMMdd");
         if (StrUtil.isEmpty(runDay)) {
             return String.valueOf(value.getTradeDay()).equals(current);
