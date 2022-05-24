@@ -3,9 +3,9 @@ package ink.haifeng.quotation;
 import ink.haifeng.quotation.common.Constants;
 import ink.haifeng.quotation.function.DataFilterFunction;
 import ink.haifeng.quotation.function.LastDataProcess;
+import ink.haifeng.quotation.function.TradeDayKeyedBroadcastProcessFunction;
 import ink.haifeng.quotation.handler.StockMinuteNoOutputHandler;
 import ink.haifeng.quotation.handler.ToMinuteDataWithOutputHandler;
-import ink.haifeng.quotation.handler.TradeDayWithOutputProcessFunction;
 import ink.haifeng.quotation.model.dto.BasicInfoData;
 import ink.haifeng.quotation.model.dto.StockData;
 import ink.haifeng.quotation.model.dto.StockMinuteData;
@@ -20,8 +20,6 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -91,10 +89,10 @@ public class QuoteStream {
                 Types.POJO(BasicInfoData.class));
         BroadcastStream<BasicInfoData> broadcastStream = basicInfoStream.broadcast(basicInfoAll);
 
-
-        TradeDayWithOutputProcessFunction tradeDayFilterProcessFunction =
-                new TradeDayWithOutputProcessFunction(tradeDayBroadcastStream);
-        filterStream = tradeDayFilterProcessFunction.handler(filterStream, null);
+        // 过滤非交易日数据
+        filterStream = filterStream.keyBy(StockData::getTradeDay)
+                .connect(broadcastStream)
+                .process(new TradeDayKeyedBroadcastProcessFunction());
 
         // 生成1129, 1500数据 用于处理特殊时间
         SingleOutputStreamOperator<StockData> streamWithWaterMark =
