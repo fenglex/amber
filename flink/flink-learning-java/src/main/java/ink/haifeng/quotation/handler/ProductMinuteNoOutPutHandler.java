@@ -36,7 +36,7 @@ public class ProductMinuteNoOutPutHandler implements NoOutputHandler<SingleOutpu
      * @return
      */
     private SingleOutputStreamOperator<StockRelateProductData> processRelateProduct(SingleOutputStreamOperator<StockDataWithPre> stream) {
-        return stream.keyBy(e -> e.getCurrent().getTradeDay())
+      /*  return stream.keyBy(e -> e.getCurrent().getTradeDay())
                 .window(TumblingEventTimeWindows.of(org.apache.flink.streaming.api.windowing.time.Time.minutes(1)))
                 .aggregate(new AggregateFunction<StockDataWithPre, List<StockDataWithPre>, ProductMinuteData>() {
 
@@ -139,12 +139,13 @@ public class ProductMinuteNoOutPutHandler implements NoOutputHandler<SingleOutpu
                                         "basic_info_broadcast_state", Types.VOID, Types.POJO(BasicInfoData.class));
                         ctx.getBroadcastState(basicInfoBroadcastStateDescriptor).put(null, value);
                     }
-                });
+                });*/
+        return null;
     }
 
     @Override
     public void handler(SingleOutputStreamOperator<StockDataWithPre> stream, Properties properties) {
-        processRelateProduct(stream).keyBy(StockRelateProductData::getTradeDay)
+       /* processRelateProduct(stream).keyBy(StockRelateProductData::getTradeDay)
                 .window(TumblingEventTimeWindows.of(Time.minutes(1)))
                 .aggregate(new AggregateFunction<StockRelateProductData, List<StockRelateProductData>,
                         List<StockRelateProductData>>() {
@@ -255,7 +256,7 @@ public class ProductMinuteNoOutPutHandler implements NoOutputHandler<SingleOutpu
                         quotation.setTotalAmount(totalAmount);
                         return quotation;
                     }
-                }).print("product-test");
+                }).print("product-test");*/
 
     }
 }

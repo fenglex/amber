@@ -91,7 +91,7 @@ public class ProductInfoSource extends RichSourceFunction<BasicInfoData> {
         Set<String> stockList =
                 constituents.stream().map(ProductConstituents::getStockCode).collect(Collectors.toSet());
         // TODO remove
-        // Map<String, StockPreClosePrice> stockProCloseMap = stockProClose(stockList, tradeDay);
+        //Map<String, StockPreClosePrice> stockProCloseMap = stockProClose(stockList, tradeDay);
         Map<String, StockPreClosePrice> stockProCloseMap = new HashMap<>();
         log.info("获取个股历史收盘价,总计{}", stockProCloseMap.size());
         BasicInfoData basicInfoData = new BasicInfoData();
@@ -108,7 +108,8 @@ public class ProductInfoSource extends RichSourceFunction<BasicInfoData> {
                     String stockCode = constituent.getStockCode();
                     StockPreClosePrice stockPreClosePrice = stockProCloseMap.get(stockCode);
                     productInfo.getConstituents().put(constituent.getStockCode(), constituent);
-                    productInfo.getStockPreClose().put(stockCode, stockPreClosePrice);
+                    productInfo.getStockPreClose().put(stockCode, stockPreClosePrice == null ?
+                            new StockPreClosePrice() : stockPreClosePrice);
                 }
             }
             infos.add(productInfo);
@@ -134,7 +135,9 @@ public class ProductInfoSource extends RichSourceFunction<BasicInfoData> {
         String sql = "SELECT  `trade_day`,`last_trade_day`,`product_code`,`product_name`,`adj_mkt_cap`," +
                 "`last_adj_mkt_cap`,`divisor`,`last_divisor`,`close_price`,`valid` FROM `tb_product_index_basicinfo`" + " where valid=1 and trade_day=%s";
         Statement statement = connection.createStatement();
-        ResultSet resultSet = statement.executeQuery(String.format(sql, runDay));
+        sql = String.format(sql, runDay);
+        log.info("exec sql:" + sql);
+        ResultSet resultSet = statement.executeQuery(sql);
         while (resultSet.next()) {
             ProductBasicInfo basicInfo = new ProductBasicInfo();
             basicInfo.setTradeDay(resultSet.getInt("trade_day"));
@@ -160,7 +163,9 @@ public class ProductInfoSource extends RichSourceFunction<BasicInfoData> {
         String sql = "SELECT product_code,stock_code,adj_share FROM tb_product_index_constituents where trade_day=%s";
         List<ProductConstituents> constituents = new ArrayList<>();
         Statement statement = connection.createStatement();
-        ResultSet resultSet = statement.executeQuery(String.format(sql, runDay));
+        String execSql = String.format(sql, runDay);
+        log.info("exec sql:" + execSql);
+        ResultSet resultSet = statement.executeQuery(execSql);
         while (resultSet.next()) {
             ProductConstituents stockConstituents = new ProductConstituents();
             stockConstituents.setProductCode(resultSet.getString("product_code"));
@@ -180,12 +185,14 @@ public class ProductInfoSource extends RichSourceFunction<BasicInfoData> {
         Map<String, StockPreClosePrice> preCloseMap = new HashMap<>(5000);
         Statement statement = connection.createStatement();
         for (String stockCode : stockList) {
-            ResultSet resultSet = statement.executeQuery(String.format(sql, stockCode, tradeDay));
+            String execSql = String.format(sql, stockCode, tradeDay);
+            // log.info("exec sql:" + execSql);
+            ResultSet resultSet = statement.executeQuery(execSql);
             while (resultSet.next()) {
                 BigDecimal closePrice = resultSet.getBigDecimal("close_price");
-                int tradeDay1 = resultSet.getInt("trade_day");
+                int day = resultSet.getInt("trade_day");
                 if (closePrice != null) {
-                    preCloseMap.put(stockCode, new StockPreClosePrice(stockCode, tradeDay1, closePrice));
+                    preCloseMap.put(stockCode, new StockPreClosePrice(stockCode, day, closePrice));
                 }
             }
         }

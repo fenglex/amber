@@ -23,7 +23,7 @@ public class BroadcastTest {
             public void run(SourceContext<String> ctx) throws Exception {
                 for (int i = 0; i < 100; i++) {
                     ctx.collect("u" + i);
-                    Thread.sleep(1000);
+                    Thread.sleep(500);
                 }
             }
 
@@ -33,7 +33,20 @@ public class BroadcastTest {
             }
         });
 
-        DataStreamSource<String> socketTextStream = env.socketTextStream("localhost", 7777);
+        DataStreamSource<String> socketTextStream = env.addSource(new SourceFunction<String>() {
+            @Override
+            public void run(SourceContext<String> ctx) throws Exception {
+                for (int i = 0; i < 100; i++) {
+                    Thread.sleep(1000);
+                    ctx.collect("uu" + i);
+                }
+            }
+
+            @Override
+            public void cancel() {
+
+            }
+        });
 
         MapStateDescriptor<Void, String> stateDescriptor = new MapStateDescriptor<>("broadcast", Types.VOID,
                 Types.STRING);
@@ -50,8 +63,7 @@ public class BroadcastTest {
             @Override
             public void processBroadcastElement(String value, KeyedBroadcastProcessFunction<String, String, String,
                     String>.Context ctx, Collector<String> out) throws Exception {
-                BroadcastState<Void, String> broadcastState = ctx.getBroadcastState(stateDescriptor);
-                broadcastState.put(null, value);
+                ctx.getBroadcastState(stateDescriptor).put(null, value);
             }
         }).print("bs_test");
 

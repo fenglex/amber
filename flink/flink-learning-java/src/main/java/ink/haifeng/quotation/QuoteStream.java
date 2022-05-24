@@ -3,18 +3,19 @@ package ink.haifeng.quotation;
 import ink.haifeng.quotation.common.Constants;
 import ink.haifeng.quotation.function.DataFilterFunction;
 import ink.haifeng.quotation.function.LastDataProcess;
-import ink.haifeng.quotation.handler.ProductMinuteNoOutPutHandler;
-import ink.haifeng.quotation.handler.StockRealTimeNoOutputHandler;
+import ink.haifeng.quotation.handler.StockMinuteNoOutputHandler;
 import ink.haifeng.quotation.handler.ToMinuteDataWithOutputHandler;
 import ink.haifeng.quotation.handler.TradeDayWithOutputProcessFunction;
 import ink.haifeng.quotation.model.dto.BasicInfoData;
 import ink.haifeng.quotation.model.dto.StockData;
-import ink.haifeng.quotation.model.dto.StockDataWithPre;
+import ink.haifeng.quotation.model.dto.StockMinuteData;
 import ink.haifeng.quotation.source.ProductInfoSource;
 import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -41,7 +42,7 @@ public class QuoteStream {
         env.setParallelism(1);
         env.setStateBackend(new EmbeddedRocksDBStateBackend());
         env.getConfig().setAutoWatermarkInterval(200);
-        env.enableCheckpointing(2000L);
+        //env.enableCheckpointing(2000L);
         args = new String[]{"-run.day", "20220418", "-redis.host", "192.168.2.8", "-redis.port", "6379", "-redis" +
                 ".password", "123456", "-redis.database", "2", "-jdbc.url", "jdbc:mysql://192.168.2" + ".8:3306" +
                 "/db_n_turbo_quotation?useUnicode=true&characterEncoding=UTF8" + "&autoReconnect=true", "-jdbc" +
@@ -73,8 +74,13 @@ public class QuoteStream {
 
         DataStreamSource<BasicInfoData> basicInfoStream = env.addSource(new ProductInfoSource()).setParallelism(1);
 
-        MapStateDescriptor<Void, BasicInfoData> basicInfoBroadcastStateDescriptor = new MapStateDescriptor<>(
-                "basic_info_broadcast_state", Types.VOID, Types.POJO(BasicInfoData.class));
+        MapStateDescriptor<Integer, BasicInfoData> basicInfoBroadcastStateDescriptor = new MapStateDescriptor<>(
+                "basic_info_broadcast_state", Types.INT, Types.POJO(BasicInfoData.class));
+        StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(Time.hours(6))
+                .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
+                .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
+                .build();
+        basicInfoBroadcastStateDescriptor.enableTimeToLive(ttlConfig);
         BroadcastStream<BasicInfoData> broadcastStream =
                 basicInfoStream.broadcast(basicInfoBroadcastStateDescriptor);
 
@@ -100,14 +106,16 @@ public class QuoteStream {
 
         // 处理个股每分钟数据
         ToMinuteDataWithOutputHandler minuteDataWithOutputHandler = new ToMinuteDataWithOutputHandler();
-        SingleOutputStreamOperator<StockDataWithPre> minuteStockStream =
-                minuteDataWithOutputHandler.handler(streamWithWaterMark, properties);
 
-      // minuteStockStream.print("minute-data");
-/*
-        StockMinuteNoOutputHandler stockMinuteNoOutputHandler = new StockMinuteNoOutputHandler();
+        SingleOutputStreamOperator<StockMinuteData> minuteStockStream =
+                minuteDataWithOutputHandler.handler(streamWithWaterMark, null);
+
+        //minuteStockStream.print("minute-data");
+
+
+        StockMinuteNoOutputHandler stockMinuteNoOutputHandler = new StockMinuteNoOutputHandler(broadcastStream);
         stockMinuteNoOutputHandler.handler(minuteStockStream, properties);
-*/
+
 
         // minuteStockStream.print("stock-minute");
 
@@ -115,8 +123,9 @@ public class QuoteStream {
   /*      StockDailyNoOutputHandler stockDailyNoOutputHandler = new StockDailyNoOutputHandler();
         stockDailyNoOutputHandler.handler(minuteStockStream, properties);*/
 
-        ProductMinuteNoOutPutHandler handler = new ProductMinuteNoOutPutHandler(broadcastStream);
-        handler.handler(minuteStockStream, properties);
+        // ProductMinuteNoOutPutHandler handler = new ProductMinuteNoOutPutHandler(broadcastStream);
+        // handler.handler(minuteStockStream, properties);
+
 
         env.execute();
     }

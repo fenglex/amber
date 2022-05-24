@@ -2,6 +2,8 @@ package ink.haifeng.quotation.handler;
 
 import ink.haifeng.quotation.model.dto.StockData;
 import ink.haifeng.quotation.model.dto.StockDataWithPre;
+import ink.haifeng.quotation.model.dto.StockMinuteData;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
@@ -12,7 +14,11 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 /**
  * 将数据转换为每分钟的数据
@@ -22,43 +28,43 @@ import java.util.Properties;
  * @date Created in 2022/5/20 11:01:02
  */
 public class ToMinuteDataWithOutputHandler implements WithOutputHandler<SingleOutputStreamOperator<StockData>,
-        SingleOutputStreamOperator<StockDataWithPre>> {
+        SingleOutputStreamOperator<StockMinuteData>> {
     @Override
-    public SingleOutputStreamOperator<StockDataWithPre> handler(SingleOutputStreamOperator<StockData> stream,
-                                                                Properties properties) {
-        SingleOutputStreamOperator<StockDataWithPre> stockMinuteData =
-                stream.keyBy(StockData::getStockCode)
-                        .window(TumblingEventTimeWindows.of(Time.minutes(1))).allowedLateness(Time.seconds(10))
-                        .reduce((ReduceFunction<StockData>) (value1, value2) -> Long.parseLong(value1.getRealtime()) <= Long.parseLong(value2.getRealtime()) ? value2 : value1)
-                        .keyBy(StockData::getStockCode)
-                        .map(new RichMapFunction<StockData, StockDataWithPre>() {
-                            private ValueState<StockData> stockLastMinuteState;
+    public SingleOutputStreamOperator<StockMinuteData> handler(SingleOutputStreamOperator<StockData> stream,
+                                                               Properties properties) {
 
-                            @Override
-                            public void open(Configuration parameters) throws Exception {
-                                ValueStateDescriptor<StockData> valueStateDescriptor = new ValueStateDescriptor<>(
-                                        "last_stock_minute", Types.POJO(StockData.class));
-                                stockLastMinuteState = getRuntimeContext().getState(valueStateDescriptor);
-                            }
+        SingleOutputStreamOperator<StockMinuteData> aggregateStream = stream.keyBy(StockData::getStockCode)
+                .window(TumblingEventTimeWindows.of(Time.minutes(1))).allowedLateness(Time.seconds(10))
+                .reduce((ReduceFunction<StockData>) (value1, value2) -> Long.parseLong(value2.getRealtime()) >= Long.parseLong(value1.getRealtime()) ? value2 : value1)
+                .keyBy(StockData::getTradeDay)
+                .window(TumblingEventTimeWindows.of(Time.minutes(1))).aggregate(new AggregateFunction<StockData,
+                        List<StockData>, StockMinuteData>() {
+                    @Override
+                    public List<StockData> createAccumulator() {
+                        return new ArrayList<>();
+                    }
 
-                            @Override
-                            public StockDataWithPre map(StockData value) throws Exception {
-                                StockData last = stockLastMinuteState.value();
-                                StockDataWithPre data;
-                                if (last != null && last.getTradeDay() == value.getTradeDay()) {
-                                    // TODO drop
-                              /*      System.out.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
-                                            value.getStockCode(), value.minute(), value.getRealtime(),
-                                            last.getStockCode(), last.minute(), last.getRealtime()));*/
-                                    data = new StockDataWithPre(value, last);
-                                } else {
-                                    data = new StockDataWithPre(value, null);
-                                }
-                                stockLastMinuteState.update(value);
-                                return data;
-                            }
-                        }).returns(Types.POJO(StockDataWithPre.class));
+                    @Override
+                    public List<StockData> add(StockData value, List<StockData> accumulator) {
+                        accumulator.add(value);
+                        return accumulator;
+                    }
 
-        return stockMinuteData;
+                    @Override
+                    public StockMinuteData getResult(List<StockData> accumulator) {
+                        StockData data = accumulator.get(0);
+                        Map<String, StockData> stockDataMap =
+                                accumulator.stream().collect(Collectors.toMap(StockData::getStockCode, e -> e));
+                        return new StockMinuteData(data.getTradeDay(), data.minute(), stockDataMap);
+                    }
+
+                    @Override
+                    public List<StockData> merge(List<StockData> a, List<StockData> b) {
+                        a.addAll(b);
+                        return a;
+                    }
+                });
+
+        return aggregateStream;
     }
 }
