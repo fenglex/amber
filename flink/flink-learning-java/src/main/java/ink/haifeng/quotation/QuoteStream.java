@@ -21,6 +21,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -39,15 +40,15 @@ import java.util.Properties;
 public class QuoteStream {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
-        env.setStateBackend(new EmbeddedRocksDBStateBackend());
+        //env.setParallelism(1);
+        //env.setStateBackend(new FsStateBackend());
         env.getConfig().setAutoWatermarkInterval(200);
         //env.enableCheckpointing(2000L);
         args = new String[]{"-run.day", "20220418", "-redis.host", "192.168.2.8", "-redis.port", "6379", "-redis" +
-                ".password", "123456", "-redis.database", "2", "-jdbc.url", "jdbc:mysql://192.168.2" + ".8:3306" +
+                ".password", "123456", "-redis.database", "2", "-jdbc.url", "jdbc:mysql://127.0.0.1:3306" +
                 "/db_n_turbo_quotation?useUnicode=true&characterEncoding=UTF8" + "&autoReconnect=true", "-jdbc" +
                 ".user", "root", "-jdbc.password", "123456", "-kafka.bootstrap", "192.168.2.8:9092", "-kafka" +
-                ".topic", "0519", "-kafka.group", "quote2"};
+                ".topic", "0418_all", "-kafka.group", "quote2"};
         ParameterTool param = ParameterTool.fromArgs(args);
         Properties properties = param.getProperties();
         env.getConfig().setGlobalJobParameters(param);
@@ -74,18 +75,25 @@ public class QuoteStream {
 
         DataStreamSource<BasicInfoData> basicInfoStream = env.addSource(new ProductInfoSource()).setParallelism(1);
 
-        MapStateDescriptor<Integer, BasicInfoData> basicInfoBroadcastStateDescriptor = new MapStateDescriptor<>(
-                "basic_info_broadcast_state", Types.INT, Types.POJO(BasicInfoData.class));
+        MapStateDescriptor<Integer, Boolean> basicInfoBroadcastStateDescriptor = new MapStateDescriptor<>(
+                "trade_day_state", Types.INT, Types.BOOLEAN);
         StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(Time.hours(6))
                 .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
                 .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
                 .build();
         basicInfoBroadcastStateDescriptor.enableTimeToLive(ttlConfig);
-        BroadcastStream<BasicInfoData> broadcastStream =
+        BroadcastStream<BasicInfoData> tradeDayBroadcastStream =
                 basicInfoStream.broadcast(basicInfoBroadcastStateDescriptor);
 
+
+        MapStateDescriptor<Integer, BasicInfoData> basicInfoAll = new MapStateDescriptor<>(
+                "basic_info_broadcast_state", Types.INT,
+                Types.POJO(BasicInfoData.class));
+        BroadcastStream<BasicInfoData> broadcastStream = basicInfoStream.broadcast(basicInfoAll);
+
+
         TradeDayWithOutputProcessFunction tradeDayFilterProcessFunction =
-                new TradeDayWithOutputProcessFunction(broadcastStream);
+                new TradeDayWithOutputProcessFunction(tradeDayBroadcastStream);
         filterStream = tradeDayFilterProcessFunction.handler(filterStream, null);
 
         // 生成1129, 1500数据 用于处理特殊时间
@@ -108,7 +116,7 @@ public class QuoteStream {
         ToMinuteDataWithOutputHandler minuteDataWithOutputHandler = new ToMinuteDataWithOutputHandler();
 
         SingleOutputStreamOperator<StockMinuteData> minuteStockStream =
-                minuteDataWithOutputHandler.handler(streamWithWaterMark, null);
+                minuteDataWithOutputHandler.handler(streamWithWaterMark, properties);
 
         //minuteStockStream.print("minute-data");
 

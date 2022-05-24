@@ -38,12 +38,12 @@ public class TradeDayWithOutputProcessFunction implements WithOutputHandler<Sing
                     private ListState<StockData> stockDataCacheListState;
 
 
-                    private MapStateDescriptor<Integer, BasicInfoData> basicInfoBroadcastStateDescriptor;
+                    private MapStateDescriptor<Integer, Boolean> basicInfoBroadcastStateDescriptor;
 
                     @Override
                     public void open(Configuration parameters) throws Exception {
                         this.basicInfoBroadcastStateDescriptor = new MapStateDescriptor<>(
-                                "basic_info_broadcast_state", Types.INT, Types.POJO(BasicInfoData.class));
+                                "trade_day_state", Types.INT, Types.BOOLEAN);
                         StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(Time.hours(6))
                                 .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
                                 .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
@@ -60,14 +60,15 @@ public class TradeDayWithOutputProcessFunction implements WithOutputHandler<Sing
                     @Override
                     public void processElement(StockData value, KeyedBroadcastProcessFunction<Integer, StockData,
                             BasicInfoData, StockData>.ReadOnlyContext ctx, Collector<StockData> out) throws Exception {
-                        BasicInfoData basicInfo =
+
+                        Boolean isTradeDay =
                                 ctx.getBroadcastState(basicInfoBroadcastStateDescriptor).get(ctx.getCurrentKey());
                         // System.out.println("接收到数据:" + value);
                         stockDataCacheListState.add(value);
-                        if (basicInfo == null) {
-                            ctx.timerService().registerProcessingTimeTimer(ctx.currentProcessingTime() + 30 * 1000L);
+                        if (isTradeDay == null) {
+                            ctx.timerService().registerProcessingTimeTimer(ctx.currentProcessingTime() + 5 * 1000L);
                         } else {
-                            if (!basicInfo.getInfos().isEmpty()) {
+                            if (isTradeDay) {
                                 for (StockData data : stockDataCacheListState.get()) {
                                     out.collect(data);
                                 }
@@ -80,18 +81,19 @@ public class TradeDayWithOutputProcessFunction implements WithOutputHandler<Sing
                     public void processBroadcastElement(BasicInfoData value, KeyedBroadcastProcessFunction<Integer,
                             StockData
                             , BasicInfoData, StockData>.Context ctx, Collector<StockData> out) throws Exception {
-                        ctx.getBroadcastState(basicInfoBroadcastStateDescriptor).put(value.getTradeDay(), value);
+                        ctx.getBroadcastState(basicInfoBroadcastStateDescriptor).put(value.getTradeDay(),
+                                !value.getInfos().isEmpty());
                     }
 
                     @Override
                     public void onTimer(long timestamp, KeyedBroadcastProcessFunction<Integer, StockData, BasicInfoData,
                             StockData>.OnTimerContext ctx, Collector<StockData> out) throws Exception {
-                        BasicInfoData basicInfo =
+
+                        Boolean isTradeDay =
                                 ctx.getBroadcastState(basicInfoBroadcastStateDescriptor).get(ctx.getCurrentKey());
-                        if (basicInfo != null) {
-                            boolean isTradeDay = !basicInfo.getInfos().isEmpty();
-                            for (StockData data : stockDataCacheListState.get()) {
-                                if (isTradeDay) {
+                        if (isTradeDay != null) {
+                            if (isTradeDay) {
+                                for (StockData data : stockDataCacheListState.get()) {
                                     out.collect(data);
                                 }
                             }
