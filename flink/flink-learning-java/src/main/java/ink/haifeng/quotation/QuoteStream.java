@@ -1,17 +1,19 @@
 package ink.haifeng.quotation;
 
 import ink.haifeng.quotation.common.Constants;
-import ink.haifeng.quotation.function.DataFilterFunction;
-import ink.haifeng.quotation.function.LastDataProcess;
-import ink.haifeng.quotation.function.TradeDayKeyedBroadcastProcessFunction;
-import ink.haifeng.quotation.handler.StockMinuteNoOutputHandler;
-import ink.haifeng.quotation.handler.ToMinuteDataWithOutputHandler;
-import ink.haifeng.quotation.model.dto.BasicInfoData;
-import ink.haifeng.quotation.model.dto.StockData;
-import ink.haifeng.quotation.model.dto.StockMinuteData;
+import ink.haifeng.quotation.function.*;
+import ink.haifeng.quotation.model.dto.*;
+import ink.haifeng.quotation.model.entity.ProductEod;
+import ink.haifeng.quotation.model.entity.StockDaily;
+import ink.haifeng.quotation.model.entity.StockQuotation;
+import ink.haifeng.quotation.sink.ProductEodSink;
+import ink.haifeng.quotation.sink.ProductQuotationSink;
+import ink.haifeng.quotation.sink.StockDailySink;
+import ink.haifeng.quotation.sink.StockQuotationSink;
 import ink.haifeng.quotation.source.ProductInfoSource;
 import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
@@ -20,10 +22,13 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.util.OutputTag;
 
 import java.time.Duration;
 import java.util.Properties;
@@ -39,7 +44,7 @@ public class QuoteStream {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         //env.setParallelism(1);
-        //env.setStateBackend(new FsStateBackend());
+        // env.setStateBackend(new EmbeddedRocksDBStateBackend());
         env.getConfig().setAutoWatermarkInterval(200);
         //env.enableCheckpointing(2000L);
         args = new String[]{"-run.day", "20220418", "-redis.host", "192.168.2.8", "-redis.port", "6379", "-redis" +
@@ -51,7 +56,6 @@ public class QuoteStream {
         Properties properties = param.getProperties();
         env.getConfig().setGlobalJobParameters(param);
 
-
         KafkaSource<String> kafkaSource = KafkaSource.<String>builder()
                 .setBootstrapServers(param.get("kafka.bootstrap"))
                 .setTopics(param.get("kafka.topic"))
@@ -60,13 +64,10 @@ public class QuoteStream {
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
 
-        SingleOutputStreamOperator<StockData> filterStream = env
+        SingleOutputStreamOperator<StockData> kafkaStream = env
                 .fromSource(kafkaSource, WatermarkStrategy.noWatermarks(), "kafka-source")
                 .map(StockData::new)
-                .returns(Types.POJO(StockData.class))
-                .filter(new DataFilterFunction(param.get(Constants.RUN_DAY)));
-
-
+                .returns(Types.POJO(StockData.class));
         // 当日basic—info数据
 
         // filterStream.print("filter-stream");
@@ -90,11 +91,10 @@ public class QuoteStream {
         BroadcastStream<BasicInfoData> broadcastStream = basicInfoStream.broadcast(basicInfoAll);
 
         // 过滤非交易日数据
-        filterStream = filterStream.keyBy(StockData::getTradeDay)
-                .connect(broadcastStream)
-                .process(new TradeDayKeyedBroadcastProcessFunction());
+        SingleOutputStreamOperator<StockData> filterStream = filterStream(kafkaStream,
+                tradeDayBroadcastStream, properties);
 
-        // 生成1129, 1500数据 用于处理特殊时间
+        // 生成水印  生成1129, 1500数据 用于处理特殊时间
         SingleOutputStreamOperator<StockData> streamWithWaterMark =
                 filterStream.keyBy(StockData::getStockCode)
                         .process(new LastDataProcess())
@@ -111,30 +111,71 @@ public class QuoteStream {
 //        realTimeHandler.handler(streamWithWaterMark, properties);
 
         // 处理个股每分钟数据
-        ToMinuteDataWithOutputHandler minuteDataWithOutputHandler = new ToMinuteDataWithOutputHandler();
-
-        SingleOutputStreamOperator<StockMinuteData> minuteStockStream =
-                minuteDataWithOutputHandler.handler(streamWithWaterMark, properties);
-
-        //minuteStockStream.print("minute-data");
-
-
-        StockMinuteNoOutputHandler stockMinuteNoOutputHandler = new StockMinuteNoOutputHandler(broadcastStream);
-        stockMinuteNoOutputHandler.handler(minuteStockStream, properties);
+        SingleOutputStreamOperator<StockMinuteData> minuteStockDataStream =
+                streamWithWaterMark.keyBy(StockData::getStockCode)
+                        .window(TumblingEventTimeWindows.of(org.apache.flink.streaming.api.windowing.time.Time.minutes(1)))
+                        .allowedLateness(org.apache.flink.streaming.api.windowing.time.Time.seconds(10))
+                        .reduce((ReduceFunction<StockData>) (value1, value2) -> Long.parseLong(value2.getRealtime()) >= Long.parseLong(value1.getRealtime()) ? value2 : value1)
+                        .keyBy(StockData::getTradeDay)
+                        .window(TumblingEventTimeWindows.of(org.apache.flink.streaming.api.windowing.time.Time.minutes(1)))
+                        .aggregate(new StockMinuteDataAggregateFunction());
 
 
-        // minuteStockStream.print("stock-minute");
+        SingleOutputStreamOperator<StockQuotation> stockMinuteQuotationStream =
+                minuteStockDataStream.keyBy(StockMinuteData::getTradeDay)
+                        .process(new StockMinuteKeyedProcessFunction());
 
-        // 个股每日数据
-  /*      StockDailyNoOutputHandler stockDailyNoOutputHandler = new StockDailyNoOutputHandler();
-        stockDailyNoOutputHandler.handler(minuteStockStream, properties);*/
-
-        // ProductMinuteNoOutPutHandler handler = new ProductMinuteNoOutPutHandler(broadcastStream);
-        // handler.handler(minuteStockStream, properties);
-
-
+        processQuotation(stockMinuteQuotationStream,properties,broadcastStream);
         env.execute();
     }
 
+
+    private static SingleOutputStreamOperator<StockData> filterStream(SingleOutputStreamOperator<StockData> kafkaStream,
+                                                                      BroadcastStream<BasicInfoData> tradeDayBroadcastStream,
+                                                                      Properties properties) {
+        return kafkaStream.filter(new DataFilterFunction(properties.getProperty(Constants.RUN_DAY)))
+                .keyBy(StockData::getTradeDay)
+                .connect(tradeDayBroadcastStream)
+                .process(new TradeDayKeyedBroadcastProcessFunction());
+    }
+
+    private static void processQuotation(SingleOutputStreamOperator<StockQuotation> stockMinuteQuotationStream,
+                                         Properties properties, BroadcastStream<BasicInfoData> broadcastStream) {
+        // 个股每分钟
+        StockQuotationSink stockQuotationSink = new StockQuotationSink(properties);
+        //stockMinuteQuotationStream.addSink(stockQuotationSink.sink());
+        stockMinuteQuotationStream.print("stock-minute");
+
+        // 个股每日
+
+        OutputTag<StockData> stockEodTag = new OutputTag<StockData>("stock-eod-output") {
+        };
+        StockDailySink stockDailySink = new StockDailySink(properties);
+        //stockMinuteQuotationStream.getSideOutput(stockEodTag).map(StockDaily::new).addSink(stockDailySink.sink());
+        stockMinuteQuotationStream.getSideOutput(stockEodTag).map(StockDaily::new).print("stock-eod");
+
+        // 每分钟产品
+
+        SingleOutputStreamOperator<ProductQuotation> productMinuteStream =
+                stockMinuteQuotationStream.keyBy(StockQuotation::getTradeDay)
+                        .window(TumblingEventTimeWindows.of(org.apache.flink.streaming.api.windowing.time.Time.minutes(1)))
+                        .aggregate(new StockMinuteQuotationAggregateFunction())
+                        .keyBy(MinuteStockQuotation::getTradeDay)
+                        .connect(broadcastStream)
+                        .process(new ProductMinuteKeyedBroadcastProcessFunction());
+
+        ProductQuotationSink productQuotationSink = new ProductQuotationSink(properties);
+        // productMinuteStream.addSink(productQuotationSink.sink());
+        productMinuteStream.print("product-minute");
+
+        // 每日产品
+        OutputTag<ProductEod> productEodOutputTag = new OutputTag<ProductEod>("product-eod-output") {
+        };
+
+        ProductEodSink productEodSink = new ProductEodSink(properties);
+        //productMinuteStream.getSideOutput(productEodOutputTag).addSink(productEodSink.sink());
+
+        productMinuteStream.getSideOutput(productEodOutputTag).print("product-eod");
+    }
 
 }

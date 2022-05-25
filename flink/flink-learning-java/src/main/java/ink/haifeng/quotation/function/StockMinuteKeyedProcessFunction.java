@@ -36,8 +36,9 @@ public class StockMinuteKeyedProcessFunction extends KeyedProcessFunction<Intege
         stockEodTag = new OutputTag<StockData>("stock-eod-output") {
         };
 
-        StateTtlConfig ttlConfig =
-                StateTtlConfig.newBuilder(Time.hours(6)).setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired).setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite).build();
+        StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(Time.hours(6))
+                .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
+                .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite).build();
 
         MapStateDescriptor<String, StockData> stringStockDataMapStateDescriptor = new MapStateDescriptor<>(
                 "stock_last_minute_data", Types.STRING, Types.POJO(StockData.class));

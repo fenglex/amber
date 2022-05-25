@@ -51,12 +51,10 @@ public class StockMinuteNoOutputHandler implements NoOutputHandler<SingleOutputS
                 "-output") {
         };
 
-        OutputTag<ProductEod> productEodOutputTag = new OutputTag<ProductEod>("product-eod-output") {
-        };
-
-
         SingleOutputStreamOperator<ProductQuotation> productMinute =
-                minuteStream.keyBy(StockQuotation::getTradeDay).window(TumblingEventTimeWindows.of(Time.minutes(1))).aggregate(new AggregateFunction<StockQuotation, List<StockQuotation>, MinuteStockQuotation>() {
+                minuteStream.keyBy(StockQuotation::getTradeDay)
+                        .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+                        .aggregate(new AggregateFunction<StockQuotation, List<StockQuotation>, MinuteStockQuotation>() {
             @Override
             public List<StockQuotation> createAccumulator() {
                 return new ArrayList<>();
