@@ -28,10 +28,9 @@ public class KafkaDataProducer {
         props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         //生产者发送消息
-        String topic = "0519";
+        String topic = "0418_all";
         Producer<String, String> producer = new KafkaProducer<String, String>(props);
-        BufferedReader reader = FileUtil.getReader("/Users/haifeng/workspace/Projects/amber/flink/flink-learning-java" +
-                "/data/002553.csv", StandardCharsets.UTF_8);
+        BufferedReader reader = FileUtil.getReader("/Users/haifeng/Documents/quotation-20220418.data", StandardCharsets.UTF_8);
         String line;
         int count = 0;
         while ((line = reader.readLine()) != null) {
@@ -40,7 +39,7 @@ public class KafkaDataProducer {
             StockData stockData = new StockData(line);
             // System.out.println(stockData);
             count += 1;
-            if (count % 1000 == 0) {
+            if (count % 100000 == 0) {
                 System.out.println(count);
             }
         }
