@@ -1,7 +1,5 @@
 package ink.haifeng;
 
-import cn.hutool.core.util.RandomUtil;
-
 /**
  * 常用的排序算法
  */
@@ -101,7 +99,6 @@ public class Sort {
      * 拿到第n个数，放到n-1的位置，如果n-1位置数小于n-2位置数调换他们位置，如果n-2位置数据小于n-3位置数据继续调换他们位置，
      * （跳出条件，n-1不再比它前面位置数小的时候，或者n-1前面没有数时，结束当前）
      *
-     *
      * @param arr
      * @return
      */
@@ -132,5 +129,34 @@ public class Sort {
         }
         return arr;
     }
+
+    public static int[] generateRandomArray(int maxSize, int maxValue) {
+        int[] arr = new int[(int) ((maxSize + 1) * Math.random())];
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = (int) ((maxValue + 1) * Math.random()) - (int) (maxValue * Math.random());
+        }
+        return arr;
+    }
+
+    // 返回一个数组arr，arr长度[0,maxLength-1),arr中的每个值[0,maxValue-1)
+    public static int[] lenRandomValueRandom(int maxLength, int maxValue) {
+        int len = (int) (maxLength * Math.random());
+        int[] ans = new int[len];
+        for (int i = 0; i < len; i++) {
+            ans[i] = (int) (Math.random() * maxValue);
+        }
+        return ans;
+    }
+
+    public static int[] copyArray(int[] arr) {
+        int[] ans = new int[arr.length];
+        for (int i = 0; i < arr.length; i++) {
+            ans[i] = arr[i];
+        }
+        return ans;
+    }
+
+
+
 
 }
