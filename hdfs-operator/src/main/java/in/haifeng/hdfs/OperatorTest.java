@@ -19,6 +19,9 @@ public class OperatorTest {
         }
 
         getFile("/tmp/test.file", fs);
+
+
+        uploadFile(fs);
     }
 
 
@@ -41,4 +44,12 @@ public class OperatorTest {
         }
 
     }
+
+
+    public static void uploadFile(FileSystem fs) throws IOException {
+        Path from = new Path("/Users/haifeng/Workspace/projects/amber/hdfs-operator/src/main/resources/log4j.properties");
+        Path to = new Path("/tmp/log4j.properties");
+        fs.copyFromLocalFile(from,to);
+    }
+
 }
