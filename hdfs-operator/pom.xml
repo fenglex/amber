@@ -15,21 +15,21 @@
   </properties>
 
   <dependencies>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-common</artifactId>
-      <version>3.0.0</version>
-    </dependency>
+<!--    <dependency>-->
+<!--      <groupId>org.apache.hadoop</groupId>-->
+<!--      <artifactId>hadoop-common</artifactId>-->
+<!--      <version>3.0.0</version>-->
+<!--    </dependency>-->
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-client</artifactId>
-      <version>3.0.0</version>
-      <scope>provided</scope>
+<!--      <version>3.0.0</version>-->
+      <version>2.6.5</version>
     </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-hdfs</artifactId>
-      <version>3.0.0</version>
-    </dependency>
+<!--    <dependency>-->
+<!--      <groupId>org.apache.hadoop</groupId>-->
+<!--      <artifactId>hadoop-hdfs</artifactId>-->
+<!--      <version>3.0.0</version>-->
+<!--    </dependency>-->
   </dependencies>
 </project>
