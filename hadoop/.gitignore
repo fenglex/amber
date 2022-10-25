@@ -44,3 +44,4 @@ buildNumber.properties
 *.iml
 out
 gen
+!/data/output/

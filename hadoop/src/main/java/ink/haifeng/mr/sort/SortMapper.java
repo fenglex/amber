@@ -1,4 +1,4 @@
-package ink.haifeng.mr;
+package ink.haifeng.mr.sort;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -8,10 +8,10 @@ import java.io.IOException;
 import java.util.StringTokenizer;
 
 
-public class MyMapper extends Mapper<Object, Text, Text, IntWritable> {
+public class SortMapper extends Mapper<Object, Text, Text, Text> {
     // 该方法只会执行一次
     @Override
-    protected void setup(Mapper<Object, Text, Text, IntWritable>.Context context) throws IOException, InterruptedException {
+    protected void setup(Mapper<Object, Text, Text, Text>.Context context) throws IOException, InterruptedException {
         super.setup(context);
     }
 
@@ -24,12 +24,10 @@ public class MyMapper extends Mapper<Object, Text, Text, IntWritable> {
     private final Text word = new Text();
 
     @Override
-    protected void map(Object key, Text value, Mapper<Object, Text, Text, IntWritable>.Context context) throws IOException, InterruptedException {
-
+    protected void map(Object key, Text value, Mapper<Object, Text, Text, Text>.Context context) throws IOException, InterruptedException {
+        String[] s = value.toString().split(" ");
+        context.write(new Text(s[0]),new Text(s[1]));
         StringTokenizer itr = new StringTokenizer(value.toString());
-        while (itr.hasMoreTokens()) {
-            word.set(itr.nextToken());
-            context.write(word, count);
-        }
+
     }
 }

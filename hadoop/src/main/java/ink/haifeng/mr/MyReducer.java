@@ -13,6 +13,7 @@ public class MyReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
         int sum = 0;
         for (IntWritable value : values) {
             sum += value.get();
+            System.out.println(values);
         }
         context.write(key, new IntWritable(sum));
 

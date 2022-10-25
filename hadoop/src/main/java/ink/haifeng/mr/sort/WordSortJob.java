@@ -1,4 +1,4 @@
-package ink.haifeng.mr;
+package ink.haifeng.mr.sort;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -10,7 +10,7 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
 import java.io.IOException;
 
-public class MyWordCount {
+public class WordSortJob {
     public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
         Configuration conf = new Configuration(true);
         // GenericOptionsParser parser = new GenericOptionsParser(conf, args);  //工具类帮我们把-D 等等的属性直接set到conf，会留下commandOptions
@@ -23,7 +23,7 @@ public class MyWordCount {
 //        job.setInputFormatClass(ooxx.class);
        // job.setJar("C:\\Users\\admin\\IdeaProjects\\msbhadoop\\target\\hadoop-hdfs-1.0-0.1.jar");
         //必须必须写的
-        job.setJarByClass(MyWordCount.class);
+        job.setJarByClass(WordSortJob.class);
         job.setJobName("wordcount");
         // 可以自定义排序
         //job.setSortComparatorClass();
@@ -35,10 +35,10 @@ public class MyWordCount {
         }
         job.setInputFormatClass(TextInputFormat.class);
         TextOutputFormat.setOutputPath(job, outfile);
-        job.setMapperClass(MyMapper.class);
+        job.setMapperClass(SortMapper.class);
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(IntWritable.class);
-        job.setReducerClass(MyReducer.class);
+        job.setMapOutputValueClass(Text.class);
+        job.setReducerClass(SortReducer.class);
         job.setNumReduceTasks(1);
         // Submit the job, then poll for progress until the job is complete
         job.waitForCompletion(true);
