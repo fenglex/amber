@@ -31,8 +31,8 @@ public class TempInfo implements WritableComparable<TempInfo> {
     }
 
     public void write(DataOutput out) throws IOException {
-        out.write(this.day);
-        out.write(this.temperature);
+        out.writeInt(this.day);
+        out.writeInt(this.temperature);
     }
 
     public void readFields(DataInput in) throws IOException {

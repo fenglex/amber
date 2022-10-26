@@ -4,6 +4,7 @@ package ink.haifeng.mr.temperature;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
@@ -15,6 +16,7 @@ public class TopN {
         Configuration conf = new Configuration(true);
         conf.set("mapreduce.framework.name","local");
         conf.set("mapreduce.app-submission.cross-platform","true");
+         //conf.set("hadoop.home.dir","D:\\Program Files\\hadoop-2.6.5");
         Job job = Job.getInstance(conf);
         job.setJarByClass(TopN.class);
         job.setJobName("TopN");
@@ -39,6 +41,9 @@ public class TopN {
         job.setSortComparatorClass(TopNSortComparator.class);
         job.setGroupingComparatorClass(TopNGroupComparator.class);
         job.setReducerClass(TopNReducer.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+        job.setNumReduceTasks(1);
 
         job.waitForCompletion(true);
 
