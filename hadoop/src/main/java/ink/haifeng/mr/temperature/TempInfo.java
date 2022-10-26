@@ -1,32 +1,42 @@
 package ink.haifeng.mr.temperature;
 
-import java.io.Serializable;
+import org.apache.hadoop.io.WritableComparable;
 
-/**
- * @author : haifeng
- */
-public class TempInfo implements Serializable {
-    private String day;
-    private int temp;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
-    public TempInfo(String day, int temp) {
-        this.day = day;
-        this.temp = temp;
-    }
+public class TempInfo implements WritableComparable<TempInfo> {
+    private int day;
+    private int temperature;
 
-    public String getDay() {
+    public int getDay() {
         return day;
     }
 
-    public void setDay(String day) {
+    public void setDay(int day) {
         this.day = day;
     }
 
-    public int getTemp() {
-        return temp;
+    public int getTemperature() {
+        return temperature;
     }
 
-    public void setTemp(int temp) {
-        this.temp = temp;
+    public void setTemperature(int temperature) {
+        this.temperature = temperature;
+    }
+
+    public int compareTo(TempInfo o) {
+        return Integer.compare(this.day, o.day);
+    }
+
+    public void write(DataOutput out) throws IOException {
+        out.write(this.day);
+        out.write(this.temperature);
+    }
+
+    public void readFields(DataInput in) throws IOException {
+        this.day = in.readInt();
+        this.temperature = in.readInt();
     }
 }

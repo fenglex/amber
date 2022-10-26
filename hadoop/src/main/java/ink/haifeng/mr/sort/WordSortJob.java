@@ -27,9 +27,9 @@ public class WordSortJob {
         job.setJobName("wordcount");
         // 可以自定义排序
         //job.setSortComparatorClass();
-        Path infile = new Path("file:///Users/haifeng/Workspace/projects/amber/hadoop/data/word.file");
+        Path infile = new Path("file:///D:\\Workspace\\amber\\hadoop\\data\\word.file");
         TextInputFormat.addInputPath(job, infile);
-        Path outfile = new Path("file:///Users/haifeng/Workspace/projects/amber/hadoop/data/output");
+        Path outfile = new Path("file:///D:\\Workspace\\amber\\hadoop\\data\\output");
         if (outfile.getFileSystem(conf).exists(outfile)) {
             outfile.getFileSystem(conf).delete(outfile, true);
         }
