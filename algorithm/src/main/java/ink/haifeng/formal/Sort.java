@@ -16,6 +16,11 @@ public class Sort {
         printArr(arr);
         selectSort(arr);
         printArr(arr);
+        System.out.println("-------------");
+        arr = randomIntArr(10, 10);
+        printArr(arr);
+        insertSelect(arr);
+        printArr(arr);
     }
 
 
@@ -77,6 +82,19 @@ public class Sort {
             arr[i] = arr[minIndex];
             arr[minIndex] = tmp;
         }
+    }
 
+    public static void insertSelect(int[] arr) {
+        for (int i = 0; i < arr.length - 1; i++) {
+            for (int j = i + 1; j > 0; j--) {
+                if (arr[j] < arr[j-1]) {
+                    int tmp = arr[j-1];
+                    arr[j-1] = arr[j];
+                    arr[j] = tmp;
+                } else {
+                    break;
+                }
+            }
+        }
     }
 }
