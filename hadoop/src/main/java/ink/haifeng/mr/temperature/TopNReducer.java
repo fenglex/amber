@@ -17,6 +17,7 @@ public class TopNReducer extends Reducer<TempInfo, IntWritable, Text, IntWritabl
         Iterator<IntWritable> iterator = values.iterator();
         int firstDay = -1;
         while (iterator.hasNext()) {
+            // 必须写-> context.nextKeyValue() ->  对key和value更新值！！！！
             IntWritable next = iterator.next();
             if (firstDay == -1) {
                 this.key.set(String.valueOf(key.getDay()));
