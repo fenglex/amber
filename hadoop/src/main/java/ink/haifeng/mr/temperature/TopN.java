@@ -45,6 +45,10 @@ public class TopN {
         job.setOutputValueClass(IntWritable.class);
         job.setNumReduceTasks(1);
 
+        // 添加缓存文件
+        // job.setCacheFiles();
+        
+
         job.waitForCompletion(true);
 
     }
