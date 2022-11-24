@@ -1,4 +1,4 @@
-package ink.haifeng
+package ink.haifeng.spark
 
 import org.apache.spark.{SparkConf, SparkContext}
 

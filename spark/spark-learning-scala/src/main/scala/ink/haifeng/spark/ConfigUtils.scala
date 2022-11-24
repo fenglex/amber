@@ -1,4 +1,4 @@
-package ink.haifeng
+package ink.haifeng.spark
 
 import com.typesafe.config.{Config, ConfigFactory}
 
