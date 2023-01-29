@@ -1,6 +1,7 @@
 package ink.haifeng;
 
 import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.Test;
@@ -26,6 +27,7 @@ public class MyConsumer {
         prop.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         prop.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
+        String lingerMsConfig = ProducerConfig.LINGER_MS_CONFIG;
         prop.setProperty(ConsumerConfig.GROUP_ID_CONFIG, "group");
         prop.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         prop.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
