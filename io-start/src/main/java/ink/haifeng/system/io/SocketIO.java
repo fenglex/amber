@@ -1,6 +1,5 @@
 package ink.haifeng.system.io;
 
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,36 +8,36 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 /**
- * SocketBIO
+ * SocketIO
  *
  * @author haifeng
- * @version 2023/2/4 20:14
+ * @version 2023/2/4 21:23
  */
-public class SocketBIO {
+public class SocketIO {
     public static void main(String[] args) throws IOException {
         ServerSocket server = new ServerSocket(9000, 20);
-        System.out.println("socket server");
+        System.out.println("start server");
 
         while (true) {
-            Socket client = server.accept();
-            System.out.println("client");
-
+            Socket client = server.accept();  //阻塞1
+            System.out.println("step2:client\t" + client.getPort());
             new Thread(() -> {
+                InputStream in = null;
                 try {
-                    InputStream in = client.getInputStream();
+                    in = client.getInputStream();
                     BufferedReader reader = new BufferedReader(new InputStreamReader(in));
                     while (true) {
-                        String line = reader.readLine();
-                        if (null != line) {
-                            System.out.println(line);
+                        String dataline = reader.readLine(); //阻塞2
+                        if (null != dataline) {
+                            System.out.println(dataline);
                         } else {
                             client.close();
                             break;
                         }
                     }
-                    System.out.println("client 断开");
+                    System.out.println("客户端断开");
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    e.printStackTrace();
                 }
             }).start();
         }
