@@ -12,19 +12,18 @@ import java.nio.Buffer;
  */
 public class SocketClient {
     public static void main(String[] args) throws IOException {
-        Socket client = new Socket("localhost", 9000);
+        Socket client = new Socket("127.0.0.1", 9000);
         client.setSendBufferSize(20);
         client.setTcpNoDelay(true);
         OutputStream out = client.getOutputStream();
         InputStream in = System.in;
         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
         while (true) {
-            String line = reader.readLine();
+            String line = reader.readLine()+"\n";
             if (line != null) {
                 byte[] bytes = line.getBytes();
-                for (byte aByte : bytes) {
-                    out.write(aByte);
-                }
+                out.write(bytes);
+                out.flush();
             }
         }
     }
