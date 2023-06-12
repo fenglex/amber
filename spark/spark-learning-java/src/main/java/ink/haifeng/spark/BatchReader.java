@@ -25,6 +25,7 @@ public class BatchReader {
                     .option("password", "123456")
                     .load();
             dataset.show();
+            dataset.show();
 //            String savePath = "/Users/haifeng/workspace/Projects/amber/spark/spark-learning-java/spark-learning
 //            -java" +
 //                    "/data/tb_user" + i;
