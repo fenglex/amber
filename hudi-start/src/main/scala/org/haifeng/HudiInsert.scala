@@ -14,7 +14,7 @@ object HudiInsert {
     //    session.sparkContext.setLogLevel("Error")
 
     //创建DataFrame
-    val insertDF: DataFrame = session.read.json("file:///D:\\2018IDEA_space\\SparkOperateHudi\\data\\jsondata.json")
+    val insertDF: DataFrame = session.read.json("file:///Users/haifeng/workspace/amber/hudi-start/data/jsondata.json")
 
 
     //将结果保存到hudi中
@@ -31,7 +31,8 @@ object HudiInsert {
       .mode(SaveMode.Overwrite)
       //注意：这里要选择hdfs路径存储，不要加上hdfs://mycluster//dir
       //将hdfs 中core-site.xml 、hdfs-site.xml放在resource目录下，直接写/dir路径即可，否则会报错：java.lang.IllegalArgumentException: Not in marker dir. Marker Path=hdfs://mycluster/hudi_data/.hoodie\.temp/20210709164730/default/c4b854e7-51d3-4a14-9b7e-54e2e88a9701-0_0-22-22_20210709164730.parquet.marker.CREATE, Expected Marker Root=/hudi_data/.hoodie/.temp/20210709164730
-      .save("/hudi_data/person_infos")
+      //.save("/hudi_data/person_infos")
+      .save("/Users/haifeng/workspace/amber/hudi-start/save_data/person_infos")
   }
 
 }
