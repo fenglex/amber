@@ -1,0 +1,80 @@
+version: "3.1"
+services:
+  mysql:
+    image: mysql
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    container_name: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=njV&@JnTD6M%
+      - MYSQL_USER=haifeng
+      - MYSQL_PASSWORD=RR5wl.23
+      - TZ=Asia/Shanghai
+    volumes:
+      - $PWD/volumes/mysql:/var/lib/mysql
+      - $PWD/volumes/mysql-conf/:/etc/mysql/conf.d/
+    ports:
+      - 3306:3306
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+  nginx:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nginx
+    restart: unless-stopped
+    network_mode: host
+    ports:
+      - '80:80'
+      - '81:81'
+      - '443:443'
+    volumes:
+      - $PWD/volumes/nginx/data:/data
+      - $PWD/volumes/nginx/letsencrypt:/etc/letsencrypt
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+  nps:
+    image: ffdfgdfg/nps
+    container_name: nps
+    restart: always
+    network_mode: host
+    volumes:
+      - $PWD/volumes/nps:/conf
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+  halo:
+    image: halohub/halo:2.7
+    container_name: halo
+    restart: on-failure:3
+    depends_on:
+      - mysql
+    volumes:
+      -  $PWD/volumes/blog:/root/.halo2
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8090/actuator/health/readiness" ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command:
+      - --spring.r2dbc.url=r2dbc:pool:mysql://mysql:3306/halo
+      - --spring.r2dbc.username=halo
+      # MySQL 的密码，请保证与下方 MYSQL_ROOT_PASSWORD 的变量值一致。
+      - --spring.r2dbc.password=cvF4c7Zy!D9w
+      - --spring.sql.init.platform=mysql
+      # 外部访问地址，请根据实际需要修改
+      - --halo.external-url=https://haifeng.ink/
+      # 初始化的超级管理员用户名
+      - --halo.security.initializer.superadminusername=admin
+      # 初始化的超级管理员密码
+      - --halo.security.initializer.superadminpassword=RR5wl.23
+    deploy:
+      resources:
+        limits:
+          memory: 768M
