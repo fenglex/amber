@@ -23,12 +23,12 @@ def get_files_recursive(directory):
     :param directory:
     :return:
     """
-    files = []
+    files = {}
     for root, dirs, filenames in os.walk(directory):
         for filename in filenames:
-            files.append(os.path.join(root, filename))
+            file = os.path.join(root, filename)
+            files[file] = get_file_md5(file)
     return files
-
 
 def sync_data_to_oss():
     pass
