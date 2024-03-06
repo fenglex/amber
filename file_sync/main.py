@@ -33,24 +33,18 @@ def calculate_file_md5(filename):
     return md5.hexdigest()
 
 
-def get_files_recursive(directory) -> dict:
+def get_files_recursive(directory) -> list:
     """
     获取目录下所有文件
     :param directory:
     :return:
     """
-    logger.info(f"处理目录：{directory}")
-    rs = {}
+    rs = []
     for root, dirs, files in os.walk(directory):
-
         for file in files:
-            k = os.path.join(root, file)
-            v = calculate_file_md5(k)
-            rs[k] = v
+            rs.append(os.path.join(root, file))
         for dir in dirs:
-            fs = get_files_recursive(os.path.join(root, dir))
-            for k, v in fs.items():
-                rs[k] = v
+            rs = rs + get_files_recursive(os.path.join(root, dir))
     return rs
 
 
@@ -66,7 +60,6 @@ if __name__ == '__main__':
     sync_dir = {}
     start = time.time()
     data = get_files_recursive("D:\\文档\\backup\\workspace\\datavita-andes-dpms-api")
-    logger.info(f"耗时：{time.time() - start}")
-    print(len(data))
-    for k, v in data.items():
-        print(k, v)
+    logger.info(f"耗时：{time.time() - start},{len(data)}")
+    for k in data[:10]:
+        print(k)
