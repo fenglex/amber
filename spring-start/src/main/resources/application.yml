@@ -1,0 +1,9 @@
+logging:
+  logback:
+    rollingpolicy:
+      rolling-policy: fixedWindow
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 200MB
+      file-name-pattern: ${LOG_PATH}/%d{yyyy-MM-dd}.log
+
