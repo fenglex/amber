@@ -4,11 +4,10 @@
 # @Time    : 2021/11/24 14:00
 # @Author  : haifeng
 
-import logging
+from loguru import logger
 import pandas as pd
-
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s %(filename)s %(funcName)s [line:%(lineno)d] %(levelname)s %(message)s')
+from datetime import datetime, timedelta
+from tools import to_db
 
 
 class Basic:
@@ -28,17 +27,24 @@ class Basic:
         for status in ['L', 'D', 'P']:
             df = self.pro_api.stock_basic(exchange='', list_status=status, fields=fields)
             temp.append(df)
-        return pd.concat(temp, axis=0)
+        df = pd.concat(temp, axis=0)
+        return df
 
-    def trade_calender(self, start_date='', end_date='', exchange=['SSE', 'SZSE']):
+    @to_db(table='tb_trade_calender', truncate=True, update_type='upsert')
+    def trade_calender(self):
         """
         获取交易日列表
         :return:
         """
+        exchange = ['SSE', 'SZSE']
+        start_date = '19900101'
+        end_date = (datetime.now() + timedelta(days=360)).strftime('%Y%m%d')
         temp = []
         for exg in exchange:
             temp.append(self.pro_api.trade_cal(exchange=exg, start_date=start_date, end_date=end_date))
-        return pd.concat(temp, axis=0)
+        df = pd.concat(temp, axis=0)
+        df = df.rename(columns={'cal_date': 'trade_day', 'pretrade_date': 'pre_trade_day'})
+        return df
 
     def public_company_info(self, exchange=['SSE', 'SZSE']):
         """

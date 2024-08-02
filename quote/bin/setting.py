@@ -3,13 +3,15 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2021/11/24 14:00
 # @Author  : haifeng
-import logging
-
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s %(filename)s %(funcName)s [line:%(lineno)d] %(levelname)s %(message)s')
+from loguru import logger
+from urllib.parse import quote_plus
 
 
 class Setting:
     def __init__(self):
-        self.token = 'e88ad9a2c34e9c77b6bd55d187694897fce2ab081f249c5cd8043cbb'
-        self.url = 'mysql+pymysql://haifeng:X1PmkDrdjNsG@haifeng.ink:3306/db_quant?charset=utf8'
+        self.token = '78282dabb315ee578fb73a9b328f493026e97d5af709acb331b7b348'
+        self.db_name = 'db_quant'
+        self.db_host = '172.16.1.3'
+        self.db_user = 'quant'
+        self.db_password = 'cJ5qXpDScH7@'
+        self.db_port = 3306
