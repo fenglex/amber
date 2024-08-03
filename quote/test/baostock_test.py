@@ -8,11 +8,11 @@
 import baostock as bs
 import pandas as pd
 
-from quote.bin.setting import Setting
+from quote.conf.config import Config
 from quote.bin.util import DbUtil
 from sqlalchemy import create_engine
 
-setting = Setting()
+setting = Config()
 conn = create_engine(setting.url)
 connect = conn.connect()
 db_util = DbUtil(conn)
