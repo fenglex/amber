@@ -4,10 +4,7 @@
 # @Time    : 2022/1/19 18:46
 # @Author  : haifeng
 
-import tushare as ts
-from basic import Basic
-from prices import Prices
-from quote.conf.config import Config
+from quote.process.prices import Prices
 
 
 def calculate_macd(df, short_period=12, long_period=26, signal_period=9):
@@ -34,13 +31,5 @@ def calculate_macd(df, short_period=12, long_period=26, signal_period=9):
 
 
 if __name__ == '__main__':
-    setting = Config()
-    ts.set_token(setting.token)
-    pro = ts.pro_api()
-    basic = Basic(pro)
-    # basic.trade_calender()
-    price = Prices(pro)
-    df = price.stock_price('600900.SH', '20150101', '20240803')
-    df = df.sort_values(by='trade_date')
-    df = calculate_macd(df)
-    print(df)
+    p = Prices()
+    df = p.stock_price('20200101', '20240802')
