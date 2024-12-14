@@ -4,10 +4,9 @@
 # @Time    : 2021/11/24 14:00
 # @Author  : haifeng
 
-from loguru import logger
-import pandas as pd
 from datetime import datetime, timedelta
-from tools import to_db
+
+import pandas as pd
 
 
 class Basic:

@@ -26,10 +26,10 @@ def calculate_macd(df, short_period=12, long_period=26, signal_period=9):
     df['DIF'] = df['short_ema'] - df['long_ema']
     df['DEM'] = df['DIF'].ewm(span=signal_period, adjust=False).mean()
     df['MACD'] = 2 * (df['DIF'] - df['DEM'])
-
     return df
 
 
 if __name__ == '__main__':
     p = Prices()
     df = p.stock_price('20200101', '20240802')
+    print(df)
