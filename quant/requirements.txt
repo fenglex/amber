@@ -1,0 +1,5 @@
+fastparquest
+duckdb
+pandas
+pymysql
+cryptography

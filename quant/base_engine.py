@@ -84,7 +84,7 @@ class MysqlStorageEngine(StorageEngine):
                 conn.execute(stat)
 
         engine = f'mysql+pymysql://{self.user}:{urllib.parse.quote(self.password)}@{self.host}:{self.port}/{self.db_name}'
-        batch_size = 100
+        batch_size = 10000
         if upsert:
             data_df.to_sql(table_name, engine, if_exists='append', method=sqlalchemy_upsert, index=False, chunksize=batch_size)
         else:

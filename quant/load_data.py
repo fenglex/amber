@@ -24,8 +24,7 @@ engine = MysqlStorageEngine(host, port, user, password, 'db_quant')
 rename = {"代码": "stock_code", "名称": "stock_name"}
 df = ak.stock_zh_a_spot_em()
 df = df.rename(columns=rename)[['stock_code', 'stock_name']]
-df.to_parquet("stock_list")
-df = pd.read_parquet("stock_list")
+
 rename = {"日期": "trade_dt",
           "股票代码": "stock_code",
           "开盘": "open",
@@ -46,8 +45,6 @@ for row in df.itertuples():
         stock_df = ak.stock_zh_a_hist(symbol=stock_code, period="daily", start_date="20170301", end_date='20241212', adjust="")
         stock_df = stock_df.rename(columns=rename)
         datas.append(stock_df)
-        if len(datas) > 10:
-            break
     except Exception as e:
         logger.error(e)
     idx = idx + 1
@@ -56,6 +53,6 @@ df = pd.concat(datas)
 df['trade_dt'] = df['trade_dt'].astype('str').str.replace("-", "")
 df['id'] = df.apply(lambda x: str(uuid4()), axis=1)
 df['update_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-logger.info(len(df))
-engine.save_data(df.head(1000), "tb_stock_eod_price", upsert=True)
+logger.info(f"total data: {len(df)}")
+engine.save_data(df, "tb_stock_eod_price", upsert=True)
 df.to_parquet("stock_eod_price.parquet")
