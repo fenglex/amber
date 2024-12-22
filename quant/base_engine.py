@@ -5,14 +5,14 @@
 # @Author  : haifeng
 # @File    : base_engine.py
 
-import pandas as pd
 import os
-import duckdb
+import urllib.parse
 from datetime import datetime
+from uuid import uuid4
+
+import pandas as pd
 import pymysql
 from loguru import logger
-from typing import Union
-import urllib.parse
 from sqlalchemy.dialects.mysql import insert
 
 
@@ -67,11 +67,24 @@ class MysqlStorageEngine(StorageEngine):
                     logger.info("exec sql:\n" + sql)
                     cursor.execute(sql)
 
-    def save_data(self, data_df: pd.DataFrame, table_name, upsert: bool = False):
+    def __exec_sql(self, sql):
+        with self.__get_conn() as conn:
+            with conn.cursor() as cursor:
+                logger.info("exec sql:\n" + sql)
+                cursor.execute(sql)
+
+    def __get_url(self):
+        return f'mysql+pymysql://{self.user}:{urllib.parse.quote(self.password)}@{self.host}:{self.port}/{self.db_name}'
+
+    def query(self, sql) -> pd.DataFrame:
+        return pd.read_sql(sql, self.__get_url())
+
+    def save_data(self, data_df: pd.DataFrame, table_name, upsert: bool = False, truncate: bool = False):
         """
         :param upsert:
         :param data_df:
         :param table_name:
+        :param truncate: 是否清空表
         :return:
         """
 
@@ -83,9 +96,16 @@ class MysqlStorageEngine(StorageEngine):
                 )
                 conn.execute(stat)
 
-        engine = f'mysql+pymysql://{self.user}:{urllib.parse.quote(self.password)}@{self.host}:{self.port}/{self.db_name}'
+        engine = self.__get_url()
         batch_size = 10000
+        if "update_time" not in data_df.columns:
+            data_df["update_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if "id" not in data_df.columns:
+            data_df['id'] = data_df.apply(lambda x: str(uuid4()), axis=1)
+        if truncate:
+            self.__exec_sql("truncate table " + table_name)
         if upsert:
-            data_df.to_sql(table_name, engine, if_exists='append', method=sqlalchemy_upsert, index=False, chunksize=batch_size)
+            data_df.to_sql(table_name, engine, if_exists='append', method=sqlalchemy_upsert, index=False,
+                           chunksize=batch_size)
         else:
             data_df.to_sql(table_name, engine, if_exists='append', index=False, chunksize=batch_size)

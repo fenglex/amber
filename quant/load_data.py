@@ -4,13 +4,13 @@
 # @Time    : 2024/12/12 14:00
 # @Author  : haifeng
 # @File    : load_data.py
-from uuid import uuid4
 
-import akshare as ak
-import pandas as pd
-import duckdb
-from loguru import logger
 from datetime import datetime
+
+import adata
+import duckdb
+import pandas as pd
+from loguru import logger
 
 duck_conn = duckdb.connect("duck.db")
 from base_engine import MysqlStorageEngine
@@ -21,38 +21,45 @@ user = 'quant'
 password = '7$2%s2WLkU8!'
 engine = MysqlStorageEngine(host, port, user, password, 'db_quant')
 
-rename = {"代码": "stock_code", "名称": "stock_name"}
-df = ak.stock_zh_a_spot_em()
-df = df.rename(columns=rename)[['stock_code', 'stock_name']]
+if __name__ == '__main__':
+    stock_df = adata.stock.info.all_code()
+    # 同步个股列表
+    file_path = "./data/tb_stock_list.parque"
+    data_df = stock_df.rename(columns={'short_name': 'stock_name', "exchange": "market"})
+    data_df.to_parquet(file_path, compression="zstd")
+    # 同步个股收盘价
+    table_name = "tb_stock_daily_price"
+    file_path = "./data/tb_stock_daily_price.parque"
+    sync_start_date = 20200101
+    adjust_type = [0, 1, 2]
+    all_data = []
+    for tp in adjust_type:
+        end_d = datetime.now().strftime('%Y-%m-%d')
+        sql = f"select stock_code,adjust_type,max(trade_dt) as max_dt from '{file_path}' where adjust_type={tp}  group by adjust_type,stock_code"
+        stock_history_df = engine.query(sql)
+        all_code = stock_df.merge(stock_history_df, on='stock_code', how='left')
+        all_code['max_dt'] = all_code['max_dt'].apply(lambda x: sync_start_date if pd.isna(x) else x)
+        idx = 0
+        for row in all_code.itertuples():
+            try:
+                idx = idx + 1
+                code = row.stock_code
+                start_d = int(row.max_dt)
+                start_d = str(start_d)[:4] + "-" + str(start_d)[4:6] + "-" + str(start_d)[6:]
+                data_df = adata.stock.market.get_market(code, start_date=start_d, end_date=end_d, adjust_type=tp)
+                if len(data_df) > 0:
+                    data_df.drop(columns=['trade_time'], inplace=True)
+                    data_df['trade_dt'] = data_df['trade_dt'].astype(str)
+                    data_df['trade_dt'] = data_df['trade_dt'].apply(lambda x: int(str(x).replace('-', '')))
+                    data_df['adjust_type'] = tp
+                    all_data.append(data_df)
+                    break
+                logger.info(f"获取{code},adjust_type:{tp},start_date:{start_d},数据量：{len(data_df)},进度:{idx}/{len(all_code)}")
+            except Exception as e:
+                logger.error(e)
+        data_df = data_df.rename(
+            columns={"trade_date": "trade_dt", "change": "chg", "change_pct": "chg_pct", "turnover_ratio": "turnover"})
+    data_df = pd.concat(all_data)
+    data_df.to_parquet(file_path, compression="zstd")
+    # 同步同花顺概念
 
-rename = {"日期": "trade_dt",
-          "股票代码": "stock_code",
-          "开盘": "open",
-          "收盘": "close",
-          "最高": "high",
-          "最低": "low",
-          "成交量": "volume",
-          "成交额": "amount",
-          "振幅": "amplitude",
-          "涨跌幅": "chg",
-          "涨跌额": "chg_pct",
-          "换手率": "turnover"}
-idx = 0
-datas = []
-for row in df.itertuples():
-    stock_code = row.stock_code
-    try:
-        stock_df = ak.stock_zh_a_hist(symbol=stock_code, period="daily", start_date="20170301", end_date='20241212', adjust="")
-        stock_df = stock_df.rename(columns=rename)
-        datas.append(stock_df)
-    except Exception as e:
-        logger.error(e)
-    idx = idx + 1
-    logger.info(f"{idx}/{len(df)} {stock_code}")
-df = pd.concat(datas)
-df['trade_dt'] = df['trade_dt'].astype('str').str.replace("-", "")
-df['id'] = df.apply(lambda x: str(uuid4()), axis=1)
-df['update_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-logger.info(f"total data: {len(df)}")
-engine.save_data(df, "tb_stock_eod_price", upsert=True)
-df.to_parquet("stock_eod_price.parquet")
