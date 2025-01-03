@@ -12,36 +12,39 @@ import duckdb
 import os
 import pandas as pd
 from loguru import logger
+from base_engine import MysqlStorageEngine
+import tushare as ts
 
 duck_engine = duckdb.connect()
-if __name__ == '__main__':
+
+host = '172.16.1.3'
+port = 3306
+user = 'quant'
+password = '7$2%s2WLkU8!'
+engine = MysqlStorageEngine(host, port, user, password, 'db_quant')
+
+
+def sync_data(start_date):
     stock_df = adata.stock.info.all_code()
     # 同步个股列表
-    file_path = "./data/stock_list.parquet"
     data_df = stock_df.rename(columns={'short_name': 'stock_name', "exchange": "market"})
-    data_df.to_parquet(file_path, compression="zstd")
+    engine.save_data(data_df, 'tb_stock_list')
     # 同步个股收盘价
-    file_path = "./data/stock_daily_price.parquet"
-    sync_start_date = 20200101
-    file_exists = os.path.exists(file_path)
-    adjust_type = [0, 1, 2]
+    table_name = 'tb_stock_daily_price'
+    adjust_type = [0]
     all_data = []
     for tp in adjust_type:
         end_d = datetime.now().strftime('%Y-%m-%d')
-        if file_exists:
-            sql = f"select stock_code,adjust_type,max(trade_dt) as max_dt from '{file_path}' where adjust_type={tp}  group by adjust_type,stock_code"
-            stock_history_df = duck_engine.query(sql).to_df()
-            all_code = stock_df.merge(stock_history_df, on='stock_code', how='left')
-        else:
-            all_code = stock_df
-            all_code['max_dt'] = sync_start_date
-        all_code['max_dt'] = all_code['max_dt'].apply(lambda x: sync_start_date if pd.isna(x) else x)
+        sql = f"select stock_code,max(trade_dt) as max_dt from {table_name} where adjust_type = {tp} group by stock_code"
+        his_df = engine.query(sql)
+        stock_df = stock_df.merge(his_df, on='stock_code', how='left')
+        stock_df['start_dt'] = stock_df.apply(lambda x: str(start_date) if pd.isna(x.max_dt) else x.max_dt, axis=1)
         idx = 0
-        for row in all_code.itertuples():
+        for row in stock_df.itertuples():
             try:
                 idx = idx + 1
                 code = row.stock_code
-                start_d = int(row.max_dt)
+                start_d = int(row.start_dt)
                 start_d = str(start_d)[:4] + "-" + str(start_d)[4:6] + "-" + str(start_d)[6:]
                 data_df = adata.stock.market.get_market(code, start_date=start_d, end_date=end_d, adjust_type=tp)
                 if len(data_df) > 0:
@@ -52,10 +55,12 @@ if __name__ == '__main__':
                     data_df['trade_dt'] = data_df['trade_dt'].apply(lambda x: int(str(x).replace('-', '')))
                     data_df['adjust_type'] = tp
                     all_data.append(data_df)
-                logger.info(f"获取{code},adjust_type:{tp},start_date:{start_d},数据量：{len(data_df)},进度:{idx}/{len(all_code)}")
+                logger.info(f"获取{code},adjust_type:{tp},start_date:{start_d},数据量：{len(data_df)},进度:{idx}/{len(stock_df)}")
             except Exception as e:
                 logger.error(e)
-    if file_exists:
-        data_df = pd.concat([pd.read_parquet(file_path), pd.concat(all_data)])
-    data_df.to_parquet(file_path, compression="zstd")
+    engine.save_data(pd.concat(all_data), table_name)
     # 同步同花顺概念
+
+
+if __name__ == '__main__':
+    sync_data('20210101')

@@ -13,7 +13,7 @@ from uuid import uuid4
 import pandas as pd
 import pymysql
 from loguru import logger
-from sqlalchemy.dialects.mysql import insert
+import numpy as np
 
 
 class StorageEngine:
@@ -41,7 +41,7 @@ class MysqlStorageEngine(StorageEngine):
         self.user = user
         self.password = password
         self.db_name = db_name
-        self.init()
+        # self.init()
 
     def __get_conn(self):
         return pymysql.connect(host=self.host,
@@ -79,33 +79,39 @@ class MysqlStorageEngine(StorageEngine):
     def query(self, sql) -> pd.DataFrame:
         return pd.read_sql(sql, self.__get_url())
 
-    def save_data(self, data_df: pd.DataFrame, table_name, upsert: bool = False, truncate: bool = False):
+    def save_data(self, data_df: pd.DataFrame, table_name, batch_size: int = 50000):
         """
         :param upsert:
         :param data_df:
         :param table_name:
         :param truncate: 是否清空表
+        :param batch_size: 批量插入大小,默认10000
         :return:
         """
-
-        def sqlalchemy_upsert(table, conn, keys, data_iter):
-            data = [dict(zip(keys, row)) for row in data_iter]
-            for d in data:
-                stat = insert(table.table).values(d).on_duplicate_key_update(
-                    {key: d[key] for key in keys}
-                )
-                conn.execute(stat)
-
-        engine = self.__get_url()
-        batch_size = 10000
-        if "update_time" not in data_df.columns:
-            data_df["update_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        if "id" not in data_df.columns:
+        if data_df is None or len(data_df) == 0:
+            return
+        logger.info(f"save data to {table_name}, data size:{len(data_df)}")
+        cols = data_df.columns.str.lower().tolist()
+        if "id" not in cols:
             data_df['id'] = data_df.apply(lambda x: str(uuid4()), axis=1)
-        if truncate:
-            self.__exec_sql("truncate table " + table_name)
-        if upsert:
-            data_df.to_sql(table_name, engine, if_exists='append', method=sqlalchemy_upsert, index=False,
-                           chunksize=batch_size)
-        else:
-            data_df.to_sql(table_name, engine, if_exists='append', index=False, chunksize=batch_size)
+        if "update_time" not in cols:
+            data_df['update_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        data_df = data_df.where(data_df.notnull(), None)
+        cols = data_df.columns.str.lower().tolist()
+        col_names = ','.join(cols)
+        params = ','.join(['%s'] * len(cols))
+        update_columns = ', '.join([f"{col}=VALUES({col})" for col in data_df.columns if col != 'id'])
+        insert_sql = f"INSERT INTO {table_name} \n ({col_names}) VALUES ({params}) \n ON DUPLICATE KEY UPDATE \n {update_columns}"
+        logger.info("insert sql:\n" + insert_sql)
+        temp = []
+        idx = 0
+        with self.__get_conn() as conn:
+            with conn.cursor() as cursor:
+                for row in data_df.itertuples():
+                    idx = idx + 1
+                    temp.append(tuple(row[1:]))
+                    if len(temp) >= batch_size or (idx == len(data_df) and len(temp) > 0):
+                        cursor.executemany(insert_sql, temp)
+                        logger.info(f"insert to:{table_name},{idx} records")
+                        temp = []
+            conn.commit()
