@@ -97,3 +97,4 @@ if __name__ == '__main__':
     })
     cols = pd_df.dtypes
     types = []
+    print(duckdb.typing.DuckDBPyType("str"))
