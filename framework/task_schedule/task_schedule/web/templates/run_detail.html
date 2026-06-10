@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ run.run_id }} - Task Schedule</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a6fd6;
+            --secondary: #764ba2;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --gray: #6c757d;
+            --gray-light: #adb5bd;
+            --border: #dee2e6;
+            --bg: #f5f7fb;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            --card-shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--dark);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .navbar-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: white;
+            text-decoration: none;
+        }
+        
+        .navbar-brand:hover { color: white; }
+        
+        .breadcrumb {
+            max-width: 1400px;
+            margin: 1.5rem auto 0;
+            padding: 0 2rem;
+            font-size: 0.9rem;
+        }
+        
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover { text-decoration: underline; }
+        
+        .container {
+            max-width: 1400px;
+            margin: 1rem auto 2rem;
+            padding: 0 2rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .card:hover { box-shadow: var(--card-shadow-hover); }
+        
+        .card-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--light);
+        }
+        
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .card-body { padding: 1.5rem; }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+        
+        .info-item {
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--gray);
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .info-value {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--dark);
+            word-break: break-all;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+        .badge-info { background: #cce5ff; color: #004085; }
+        .badge-secondary { background: #e2e3e5; color: #383d41; }
+        
+        .code {
+            font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.8rem;
+            background: #f1f3f4;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+        
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-sm { padding: 0.35rem 0.65rem; font-size: 0.8rem; }
+        
+        .log-container {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 1rem;
+            max-height: 600px;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+        
+        .log-line {
+            padding: 0.2rem 0;
+            border-bottom: 1px solid #333;
+            color: #d4d4d4;
+        }
+        
+        .log-line:last-child { border-bottom: none; }
+        
+        .log-time { color: #888; margin-right: 0.5rem; }
+        
+        .log-level {
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            margin-right: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .log-level-INFO { background: #0d6efd; color: white; }
+        .log-level-WARNING { background: #ffc107; color: #000; }
+        .log-level-ERROR { background: #dc3545; color: white; }
+        .log-level-DEBUG { background: #6c757d; color: white; }
+        
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--gray);
+        }
+        
+        .refresh-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+        }
+        
+        .refresh-badge.running {
+            background: #cce5ff;
+            color: #004085;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .time-text {
+            font-size: 0.85rem;
+            color: var(--dark);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .card { animation: fadeIn 0.3s ease; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/" class="navbar-brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12,6 12,12 16,14"/>
+                </svg>
+                Task Schedule
+            </a>
+        </div>
+    </nav>
+
+    <div class="breadcrumb">
+        <a href="/">首页</a> / 
+        <a href="/task/{{ task.task_id if task else '' }}">{{ task.task_id if task else '' }}</a> / 
+        <span class="code" style="background: var(--dark); color: var(--primary);">{{ run.run_id }}</span>
+        {% if run.status == 'running' %}
+        <span class="refresh-badge running">运行中</span>
+        {% endif %}
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">运行信息</span>
+                <button class="btn btn-primary btn-sm" onclick="location.reload()">刷新</button>
+            </div>
+            <div class="card-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">运行ID</div>
+                        <div class="info-value code">{{ run.run_id }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">状态</div>
+                        <div class="info-value">
+                            <span class="badge badge-{{ 'success' if run.status == 'success' else 'danger' if run.status == 'failed' else 'warning' if run.status == 'running' else 'secondary' }}">
+                                {% if run.status == 'success' %}
+                                成功
+                                {% elif run.status == 'failed' %}
+                                失败
+                                {% elif run.status == 'running' %}
+                                运行中
+                                {% elif run.status == 'pending' %}
+                                等待
+                                {% elif run.status == 'skipped' %}
+                                跳过
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">开始时间</div>
+                        <div class="info-value time-text">{{ run.created_at | local_time }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">结束时间</div>
+                        <div class="info-value time-text">
+                            {% if run.end_time %}
+                            {{ run.end_time | local_time }}
+                            {% else %}
+                            <span style="color: var(--gray-light);">-</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if run.error_message %}
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <div class="info-label">错误信息</div>
+                        <div class="info-value" style="color: var(--danger); white-space: normal;">{{ run.error_message }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">日志输出</span>
+                <span id="log-count">共 {{ logs|length }} 条日志</span>
+            </div>
+            <div class="card-body">
+                <div class="log-container" id="log-container">
+                    {% for log in logs %}
+                    <div class="log-line">
+                        <span class="log-time">{{ log.log_time | local_time }}</span>
+                        <span class="log-level log-level-{{ log.log_level }}">{{ log.log_level }}</span>
+                        {{ log.log_message }}
+                    </div>
+                    {% endfor %}
+                    {% if not logs %}
+                    <div class="empty-state">
+                        <h3>暂无日志</h3>
+                        <p>任务尚未产生日志</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const runId = '{{ run.run_id }}';
+        const isRunning = {{ 'true' if run.status == 'running' else 'false' }};
+        let lastLogId = {{ logs[-1].sequence if logs else 0 }};
+
+        function formatLocalTime(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            const utcDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+            const localDate = new Date(utcDate.getTime() + 8 * 60 * 60 * 1000);
+            return localDate.toISOString().slice(0, 19).replace('T', ' ');
+        }
+
+        async function fetchLogs() {
+            try {
+                const response = await fetch(`/api/run/${runId}/logs?last_log_id=${lastLogId}`);
+                const data = await response.json();
+                
+                if (data.logs && data.logs.length > 0) {
+                    const container = document.getElementById('log-container');
+                    const emptyState = container.querySelector('.empty-state');
+                    if (emptyState) {
+                        emptyState.remove();
+                    }
+
+                    data.logs.forEach(log => {
+                        const div = document.createElement('div');
+                        div.className = 'log-line';
+                        div.innerHTML = `
+                            <span class="log-time">${formatLocalTime(log.log_time)}</span>
+                            <span class="log-level log-level-${log.log_level}">${log.log_level}</span>
+                            ${log.log_message}
+                        `;
+                        container.appendChild(div);
+                        lastLogId = log.sequence;
+                    });
+
+                    document.getElementById('log-count').textContent = `共 ${lastLogId} 条日志`;
+                    container.scrollTop = container.scrollHeight;
+                }
+
+                if (data.is_running) {
+                    setTimeout(fetchLogs, 2000);
+                } else if (isRunning) {
+                    location.reload();
+                }
+            } catch (err) {
+                console.error('获取日志失败:', err);
+                if (isRunning) {
+                    setTimeout(fetchLogs, 5000);
+                }
+            }
+        }
+
+        if (isRunning) {
+            setTimeout(fetchLogs, 2000);
+        }
+    </script>
+</body>
+</html>

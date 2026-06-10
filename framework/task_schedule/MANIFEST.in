@@ -1,0 +1,12 @@
+include README.md
+recursive-include task_schedule/web/templates *.html
+recursive-include task_schedule/web/static *
+
+exclude .kilocode
+exclude .roo
+exclude dist
+exclude examples
+exclude task_schedule/examples
+exclude *.pyc
+exclude __pycache__
+

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Schedule - 任务调度平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a6fd6;
+            --secondary: #764ba2;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --gray: #6c757d;
+            --gray-light: #adb5bd;
+            --border: #dee2e6;
+            --bg: #f5f7fb;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            --card-shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--dark);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .navbar-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .navbar-brand svg {
+            width: 32px;
+            height: 32px;
+        }
+        
+        .navbar-nav {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: var(--card-shadow-hover);
+        }
+        
+        .card-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--light);
+        }
+        
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .card-body {
+            padding: 0;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+        
+        .table th {
+            background: #fafbfc;
+            padding: 0.875rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--gray);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--border);
+        }
+        
+        .table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        
+        .table tbody tr {
+            transition: background-color 0.2s ease;
+        }
+        
+        .table tbody tr:hover {
+            background: #fafbfc;
+        }
+        
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .task-id {
+            font-weight: 600;
+            color: var(--primary);
+            text-decoration: none;
+        }
+        
+        .task-id:hover {
+            text-decoration: underline;
+        }
+        
+        .task-desc {
+            color: var(--gray);
+            font-size: 0.875rem;
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-info {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .badge-secondary {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .badge-light {
+            background: #f8f9fa;
+            color: #495057;
+        }
+        
+        .badge-dark {
+            background: #343a40;
+            color: white;
+        }
+        
+        .code {
+            font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.8rem;
+            background: #f1f3f4;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        .btn-secondary {
+            background: var(--gray);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-sm {
+            padding: 0.35rem 0.65rem;
+            font-size: 0.8rem;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 0.35rem;
+        }
+        
+        .time {
+            font-size: 0.875rem;
+            color: var(--dark);
+            white-space: nowrap;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--gray);
+        }
+        
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: var(--gray);
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+            font-size: 1.3rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .refresh-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--gray);
+            margin-top: 0.25rem;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .card {
+            animation: fadeIn 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="navbar-brand">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12,6 12,12 16,14"/>
+                </svg>
+                Task Schedule
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1 class="page-title">任务列表</h1>
+            <button class="btn btn-primary" onclick="location.reload()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23,4 23,10 17,10"/>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                刷新
+            </button>
+        </div>
+        
+        {% if tasks %}
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">{{ tasks|length }}</div>
+                <div class="stat-label">总任务数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ tasks|selectattr('task.is_active')|list|length }}</div>
+                <div class="stat-label">运行中</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ tasks|selectattr('last_run')|selectattr('last_run.status', 'equalto', 'success')|list|length }}</div>
+                <div class="stat-label">成功运行</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ tasks|selectattr('last_run')|selectattr('last_run.status', 'equalto', 'failed')|list|length }}</div>
+                <div class="stat-label">失败运行</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">所有任务</span>
+            </div>
+            <div class="card-body">
+                <div class="table-wrapper">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>任务ID</th>
+                                <th>描述</th>
+                                <th>触发类型</th>
+                                <th>配置</th>
+                                <th>状态</th>
+                                <th>最后运行</th>
+                                <th>运行状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in tasks %}
+                            <tr>
+                                <td>
+                                    <a href="/task/{{ item.task.task_id }}" class="task-id">{{ item.task.task_id }}</a>
+                                </td>
+                                <td>
+                                    <div class="task-desc" title="{{ item.task.description or '' }}">{{ item.task.description or '-' }}</div>
+                                </td>
+                                <td>
+                                    {% if item.task.trigger_type == 'interval' %}
+                                    <span class="badge badge-info">间隔</span>
+                                    {% else %}
+                                    <span class="badge badge-dark">Crontab</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="code">
+                                        {% if item.task.trigger_type == 'interval' %}
+                                        {{ item.task.interval_seconds }}秒
+                                        {% else %}
+                                        {{ item.task.cron_expression }}
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if item.task.is_active %}
+                                    <span class="badge badge-success">启用</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">禁用</span>
+                                    {% endif %}
+                                </td>
+                                <td class="time">
+                                    {% if item.last_run %}
+                                    {{ item.last_run.created_at | local_time }}
+                                    {% else %}
+                                    <span style="color: var(--gray-light);">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.last_run %}
+                                    <span class="badge badge-{{ 'success' if item.last_run.status == 'success' else 'danger' if item.last_run.status == 'failed' else 'warning' if item.last_run.status == 'running' else 'secondary' }}">
+                                        {% if item.last_run.status == 'success' %}
+                                        成功
+                                        {% elif item.last_run.status == 'failed' %}
+                                        失败
+                                        {% elif item.last_run.status == 'running' %}
+                                        运行中
+                                        {% elif item.last_run.status == 'pending' %}
+                                        等待
+                                        {% elif item.last_run.status == 'skipped' %}
+                                        跳过
+                                        {% endif %}
+                                    </span>
+                                    {% else %}
+                                    <span style="color: var(--gray-light);">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="/task/{{ item.task.task_id }}" class="btn btn-primary btn-sm">详情</a>
+                                        {% if item.task.is_active %}
+                                        <button class="btn btn-secondary btn-sm" onclick="pauseTask('{{ item.task.task_id }}')">暂停</button>
+                                        {% else %}
+                                        <button class="btn btn-success btn-sm" onclick="resumeTask('{{ item.task.task_id }}')">恢复</button>
+                                        {% endif %}
+                                        <button class="btn btn-primary btn-sm" onclick="runTask('{{ item.task.task_id }}')">运行</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <h3>暂无任务</h3>
+                <p>使用 @task 装饰器定义您的任务</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <button class="refresh-btn" onclick="location.reload()" title="刷新页面">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23,4 23,10 17,10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+    </button>
+
+    <script>
+        function pauseTask(taskId) {
+            fetch(`/api/task/${taskId}/pause`, { method: 'POST' })
+                .then(r => r.json())
+                .then(d => { if(d.success) location.reload(); });
+        }
+
+        function resumeTask(taskId) {
+            fetch(`/api/task/${taskId}/resume`, { method: 'POST' })
+                .then(r => r.json())
+                .then(d => { if(d.success) location.reload(); });
+        }
+
+        function runTask(taskId) {
+            fetch(`/api/task/${taskId}/run`, { method: 'POST' })
+                .then(r => r.json())
+                .then(d => { if(d.success) alert('任务已加入执行队列'); });
+        }
+
+        setTimeout(() => location.reload(), 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "task_schedule"
+version = "1.7.0"
+description = "A powerful Python task scheduling framework with web UI"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "sqlalchemy>=2.0.0",
+    "apscheduler>=3.10.0",
+    "loguru>=0.7.0",
+    "sse-starlette>=1.6.0",
+    "aiofiles>=23.2.0",
+    "jinja2>=3.1.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["task_schedule*"]
+
+[tool.setuptools.package-data]
+task_schedule = ["web/templates/*.html", "web/static/*"]
