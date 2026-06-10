@@ -27,3 +27,46 @@ hs_err_pid*
 
 target/
 **.db
+
+# ===== 敏感信息防泄露 =====
+# 环境变量与本地配置
+.env
+.env.*
+!.env.example
+*.env.local
+secrets.yml
+secrets.yaml
+credentials.json
+credentials.yml
+
+# 各种密钥/证书
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.ppk
+known_hosts
+.htpasswd
+
+# 云厂商凭据
+.aws/
+.azure/
+gcloud-key*.json
+*service-account*.json
+
+# Python 虚拟环境
+.venv/
+venv/
+env/
+__pycache__/
+
+# IDE 本地配置
+.vscode/
+.idea/workspace.xml
+.idea/usage.statistics.xml
