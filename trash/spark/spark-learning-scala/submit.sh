@@ -1,0 +1,1 @@
+spark-submit --master yarn --deploy-mode cluster --num-executors 4 --class ink.haifeng.SparkTest spark-learning-scala-1.0-SNAPSHOT-jar-with-dependencies.jar
